@@ -1,8 +1,8 @@
 add_subdirectory(Support)
 add_subdirectory(System)
 
-message(STATUS "${LLVMSupport}")
-message(STATUS "${LLVMSystem}")
+#message(STATUS "${LLVMSupport}")
+#message(STATUS "${LLVMSystem}")
 
 set(llvm_src
     ${LLVMSupport}
