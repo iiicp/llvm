@@ -25,6 +25,24 @@ set(LLVM_LIBDIR_SUFFIX "" CACHE STRING "Define suffix of library directory name 
 
 include_directories(include)
 
+set(LLVM_ALL_TARGETS
+        Alpha
+        ARM
+        Blackfin
+        CBackend
+        CellSPU
+        CppBackend
+        Mips
+        MSIL
+        MSP430
+        PIC16
+        PowerPC
+        Sparc
+        SystemZ
+        X86
+        XCore
+        )
+
 set(LLVM_TARGETS_TO_BUILD X86)
 
 option(LLVM_ENABLE_THREADS "Use threads if available." ON)
@@ -59,21 +77,21 @@ endif( uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" AND NOT LLVM_ENABLE_ASSERTI
 
 
 set(LLVM_ENUM_TARGETS "")
-#foreach(c ${LLVM_TARGETS_TO_BUILD})
-#    list(FIND LLVM_ALL_TARGETS ${c} idx)
-#    if( idx LESS 0 )
-#        message(FATAL_ERROR "The target `${c}' does not exist.
-#    It should be one of\n${LLVM_ALL_TARGETS}")
-#    else()
-#        set(LLVM_ENUM_TARGETS "${LLVM_ENUM_TARGETS}LLVM_TARGET(${c})\n")
-#    endif()
-#endforeach(c)
+foreach(c ${LLVM_TARGETS_TO_BUILD})
+    list(FIND LLVM_ALL_TARGETS ${c} idx)
+    if( idx LESS 0 )
+        message(FATAL_ERROR "The target `${c}' does not exist.
+    It should be one of\n${LLVM_ALL_TARGETS}")
+    else()
+        set(LLVM_ENUM_TARGETS "${LLVM_ENUM_TARGETS}LLVM_TARGET(${c})\n")
+    endif()
+endforeach(c)
 
 # Produce llvm/Config/Targets.def
-#configure_file(
-#        ${LLVM_MAIN_INCLUDE_DIR}/llvm/Config/Targets.def.in
-#        ${LLVM_BINARY_DIR}/include/llvm/Config/Targets.def
-#)
+configure_file(
+        ${LLVM_MAIN_INCLUDE_DIR}/llvm/Config/Targets.def.in
+        ${LLVM_BINARY_DIR}/include/llvm/Config/Targets.def
+)
 
 set(llvm_builded_incs_dir ${LLVM_BINARY_DIR}/include/llvm)
 
@@ -173,6 +191,46 @@ endif( MSVC )
 include_directories( ${LLVM_BINARY_DIR}/include ${LLVM_MAIN_INCLUDE_DIR})
 
 #include(AddLLVM)
-#include(TableGen)
+include(TableGen)
 
 add_subdirectory(lib)
+
+#set(LLVM_TABLEGEN "tblgen" CACHE
+#        STRING "Native TableGen executable. Saves building one when cross-compiling.")
+## Effective tblgen executable to be used:
+#set(LLVM_TABLEGEN_EXE ${LLVM_TABLEGEN})
+
+#add_subdirectory(utils/TableGen)
+#
+#set(LLVM_ENUM_ASM_PRINTERS "")
+#set(LLVM_ENUM_ASM_PARSERS "")
+#foreach(t ${LLVM_TARGETS_TO_BUILD})
+#    message(STATUS "Targeting ${t}")
+#    add_subdirectory(lib/Target/${t})
+#    add_subdirectory(lib/Target/${t}/TargetInfo)
+#    if( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmPrinter/CMakeLists.txt )
+#        add_subdirectory(lib/Target/${t}/AsmPrinter)
+#        set(LLVM_ENUM_ASM_PRINTERS
+#                "${LLVM_ENUM_ASM_PRINTERS}LLVM_ASM_PRINTER(${t})\n")
+#    endif( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmPrinter/CMakeLists.txt )
+#    if( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmParser/CMakeLists.txt )
+#        add_subdirectory(lib/Target/${t}/AsmParser)
+#        set(LLVM_ENUM_ASM_PARSERS
+#                "${LLVM_ENUM_ASM_PARSERS}LLVM_ASM_PARSER(${t})\n")
+#    endif( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmParser/CMakeLists.txt )
+#    set(CURRENT_LLVM_TARGET)
+#endforeach(t)
+#
+## Produce llvm/Config/AsmPrinters.def
+#configure_file(
+#        ${LLVM_MAIN_INCLUDE_DIR}/llvm/Config/AsmPrinters.def.in
+#        ${LLVM_BINARY_DIR}/include/llvm/Config/AsmPrinters.def
+#)
+#
+## Produce llvm/Config/AsmParsers.def
+#configure_file(
+#        ${LLVM_MAIN_INCLUDE_DIR}/llvm/Config/AsmParsers.def.in
+#        ${LLVM_BINARY_DIR}/include/llvm/Config/AsmParsers.def
+#)
+
+#add_subdirectory(lib/Target)

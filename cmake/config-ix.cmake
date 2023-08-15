@@ -85,10 +85,10 @@ include(CheckAtomic)
 include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag("-fPIC" SUPPORTS_FPIC_FLAG)
 
-#include(GetTargetTriple)
-#get_target_triple(LLVM_HOSTTRIPLE)
-# todo fix me
-set(LLVM_HOSTTRIPLE "x86_64-apple-darwin22.5.0")
+include(GetTargetTriple)
+get_target_triple(LLVM_HOSTTRIPLE)
+
+#set(LLVM_HOSTTRIPLE "x86_64-apple-darwin22.5.0")
 message(STATUS "LLVM_HOSTTRIPLE: ${LLVM_HOSTTRIPLE}")
 
 # Determine the native architecture.
