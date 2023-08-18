@@ -1,0 +1,43 @@
+file(REMOVE_RECURSE
+  "../libLLVMSystem.a"
+  "../libLLVMSystem.pdb"
+  "CMakeFiles/LLVMSystem.dir/Alarm.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/Alarm.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/Atomic.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/Atomic.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/Disassembler.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/Disassembler.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/DynamicLibrary.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/DynamicLibrary.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/Errno.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/Errno.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/Host.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/Host.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/IncludeFile.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/IncludeFile.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/Memory.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/Memory.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/Mutex.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/Mutex.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/Path.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/Path.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/Process.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/Process.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/Program.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/Program.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/RWMutex.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/RWMutex.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/Signals.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/Signals.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/ThreadLocal.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/ThreadLocal.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/Threading.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/Threading.cpp.o.d"
+  "CMakeFiles/LLVMSystem.dir/TimeValue.cpp.o"
+  "CMakeFiles/LLVMSystem.dir/TimeValue.cpp.o.d"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang CXX)
+  include(CMakeFiles/LLVMSystem.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

@@ -23,7 +23,7 @@ add_executable(tblgen
   TableGenBackend.cpp
   )
 
-target_link_libraries(tblgen PRIVATE LLVM)
+target_link_libraries(tblgen PRIVATE LLVMSupport LLVMSystem)
 if( MINGW )
   target_link_libraries(tblgen imagehlp psapi)
 endif( MINGW )

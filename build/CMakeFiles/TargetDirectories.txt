@@ -1,0 +1,17 @@
+/Users/caipeng/work/mini-clang/llvm/build/CMakeFiles/edit_cache.dir
+/Users/caipeng/work/mini-clang/llvm/build/CMakeFiles/rebuild_cache.dir
+/Users/caipeng/work/mini-clang/llvm/build/lib/System/CMakeFiles/LLVMSystem.dir
+/Users/caipeng/work/mini-clang/llvm/build/lib/System/CMakeFiles/edit_cache.dir
+/Users/caipeng/work/mini-clang/llvm/build/lib/System/CMakeFiles/rebuild_cache.dir
+/Users/caipeng/work/mini-clang/llvm/build/lib/Support/CMakeFiles/LLVMSupport.dir
+/Users/caipeng/work/mini-clang/llvm/build/lib/Support/CMakeFiles/edit_cache.dir
+/Users/caipeng/work/mini-clang/llvm/build/lib/Support/CMakeFiles/rebuild_cache.dir
+/Users/caipeng/work/mini-clang/llvm/build/utils/TableGen/CMakeFiles/tblgen.dir
+/Users/caipeng/work/mini-clang/llvm/build/utils/TableGen/CMakeFiles/edit_cache.dir
+/Users/caipeng/work/mini-clang/llvm/build/utils/TableGen/CMakeFiles/rebuild_cache.dir
+/Users/caipeng/work/mini-clang/llvm/build/include/llvm/CMakeFiles/intrinsics_gen.dir
+/Users/caipeng/work/mini-clang/llvm/build/include/llvm/CMakeFiles/edit_cache.dir
+/Users/caipeng/work/mini-clang/llvm/build/include/llvm/CMakeFiles/rebuild_cache.dir
+/Users/caipeng/work/mini-clang/llvm/build/lib/VMCore/CMakeFiles/LLVMCore.dir
+/Users/caipeng/work/mini-clang/llvm/build/lib/VMCore/CMakeFiles/edit_cache.dir
+/Users/caipeng/work/mini-clang/llvm/build/lib/VMCore/CMakeFiles/rebuild_cache.dir

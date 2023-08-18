@@ -1,5 +1,5 @@
 # See docs/CMake.html for instructions about how to build LLVM with CMake.
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.10)
 project(LLVM)
 
 set(PACKAGE_NAME llvm)
@@ -23,7 +23,23 @@ set(LLVM_TOOLS_BINARY_DIR ${LLVM_BINARY_DIR}/bin)
 set(LLVM_EXAMPLES_BINARY_DIR ${LLVM_BINARY_DIR}/examples)
 set(LLVM_LIBDIR_SUFFIX "" CACHE STRING "Define suffix of library directory name (32/64)" )
 
-include_directories(include)
+if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR )
+    file(GLOB_RECURSE
+            tablegenned_files_on_include_dir
+            "${LLVM_MAIN_SRC_DIR}/include/llvm/*.gen")
+    file(GLOB_RECURSE
+            tablegenned_files_on_lib_dir
+            "${LLVM_MAIN_SRC_DIR}/lib/Target/*.inc")
+    if( tablegenned_files_on_include_dir OR tablegenned_files_on_lib_dir)
+        message(FATAL_ERROR "Apparently there is a previous in-source build,
+probably as the result of running `configure' and `make' on
+${LLVM_MAIN_SRC_DIR}.
+This may cause problems. The suspicious files are:
+${tablegenned_files_on_lib_dir}
+${tablegenned_files_on_include_dir}
+Please clean the source directory.")
+    endif()
+endif()
 
 set(LLVM_ALL_TARGETS
         Alpha
@@ -43,7 +59,16 @@ set(LLVM_ALL_TARGETS
         XCore
         )
 
-set(LLVM_TARGETS_TO_BUILD X86)
+
+if( MSVC )
+    set(LLVM_TARGETS_TO_BUILD X86
+            CACHE STRING "Semicolon-separated list of targets to build, or \"all\".")
+else( MSVC )
+#    set(LLVM_TARGETS_TO_BUILD ${LLVM_ALL_TARGETS}
+#            CACHE STRING "Semicolon-separated list of targets to build, or \"all\".")
+    set(LLVM_TARGETS_TO_BUILD X86
+        CACHE STRING "Semicolon-separated list of targets to build, or \"all\".")
+endif( MSVC )
 
 option(LLVM_ENABLE_THREADS "Use threads if available." ON)
 
@@ -119,7 +144,11 @@ else(WIN32)
     if(UNIX)
         set(LLVM_ON_WIN32 0)
         set(LLVM_ON_UNIX 1)
-        set(LTDL_SHLIB_EXT ".so")
+        if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+            set(LTDL_SHLIB_EXT ".dylib")
+        else()
+            set(LTDL_SHLIB_EXT ".so")
+        endif()
         set(EXEEXT "")
         # FIXME: Maximum path length is currently set to 'safe' fixed value
         set(MAXPATHLEN 2024)
@@ -193,15 +222,19 @@ include_directories( ${LLVM_BINARY_DIR}/include ${LLVM_MAIN_INCLUDE_DIR})
 #include(AddLLVM)
 include(TableGen)
 
-add_subdirectory(lib)
+add_subdirectory(lib/System)
+add_subdirectory(lib/Support)
 
-#set(LLVM_TABLEGEN "tblgen" CACHE
-#        STRING "Native TableGen executable. Saves building one when cross-compiling.")
-## Effective tblgen executable to be used:
-#set(LLVM_TABLEGEN_EXE ${LLVM_TABLEGEN})
+set(LLVM_TABLEGEN "tblgen" CACHE
+        STRING "Native TableGen executable. Saves building one when cross-compiling.")
+# Effective tblgen executable to be used:
+set(LLVM_TABLEGEN_EXE ${LLVM_TABLEGEN})
 
-#add_subdirectory(utils/TableGen)
-#
+add_subdirectory(utils/TableGen)
+
+add_subdirectory(include/llvm)
+add_subdirectory(lib/VMCore)
+
 #set(LLVM_ENUM_ASM_PRINTERS "")
 #set(LLVM_ENUM_ASM_PARSERS "")
 #foreach(t ${LLVM_TARGETS_TO_BUILD})

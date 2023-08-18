@@ -23,7 +23,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Streams.h"
-//#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Target/TargetRegistry.h"
 #include "llvm/System/Path.h"
 #include <algorithm>
 #include <functional>
@@ -1144,7 +1144,7 @@ public:
         cout << "  Built " << __DATE__ << "(" << __TIME__ << ").\n";
         cout << "\n";
         cout << "  Registered Targets:\n";
-#if 0
+#if 1
         std::vector<std::pair<std::string, const Target*> > Targets;
         size_t Width = 0;
         for (TargetRegistry::iterator it = TargetRegistry::begin(),

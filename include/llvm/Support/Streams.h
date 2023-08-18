@@ -16,6 +16,7 @@
 #define LLVM_SUPPORT_STREAMS_H
 
 #include <iosfwd>
+#include <iostream>
 
 namespace llvm {
 
