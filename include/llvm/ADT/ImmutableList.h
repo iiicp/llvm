@@ -103,6 +103,14 @@ public:
   /// isEmpty - Returns true if the list is empty.
   bool isEmpty() const { return !X; }
 
+  bool contains(const T& V) const {
+    for (iterator I = begin(), E = end(); I != E; ++I) {
+      if (*I == V)
+        return true;
+    }
+    return false;
+  }
+
   /// isEqual - Returns true if two lists are equal.  Because all lists created
   ///  from the same ImmutableListFactory are uniqued, this has O(1) complexity
   ///  because it the contents of the list do not need to be compared.  Note
@@ -156,7 +164,7 @@ public:
     if (ownsAllocator()) delete &getAllocator();
   }
 
-  ImmutableList<T> Concat(const T& Head, ImmutableList<T> Tail) {
+  ImmutableList<T> concat(const T& Head, ImmutableList<T> Tail) {
     // Profile the new list to see if it already exists in our cache.
     FoldingSetNodeID ID;
     void* InsertPos;
@@ -178,16 +186,16 @@ public:
     return L;
   }
 
-  ImmutableList<T> Add(const T& D, ImmutableList<T> L) {
-    return Concat(D, L);
+  ImmutableList<T> add(const T& D, ImmutableList<T> L) {
+    return concat(D, L);
   }
 
-  ImmutableList<T> GetEmptyList() const {
+  ImmutableList<T> getEmptyList() const {
     return ImmutableList<T>(0);
   }
 
-  ImmutableList<T> Create(const T& X) {
-    return Concat(X, GetEmptyList());
+  ImmutableList<T> create(const T& X) {
+    return Concat(X, getEmptyList());
   }
 };
 
@@ -211,8 +219,11 @@ template<typename T> struct DenseMapInfo<ImmutableList<T> > {
   static bool isEqual(ImmutableList<T> X1, ImmutableList<T> X2) {
     return X1 == X2;
   }
-  static bool isPod() { return true; }
 };
+
+template <typename T> struct isPodLike;
+template <typename T>
+struct isPodLike<ImmutableList<T> > { static const bool value = true; };
 
 } // end llvm namespace
 

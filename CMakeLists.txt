@@ -2,8 +2,10 @@
 cmake_minimum_required(VERSION 3.10)
 project(LLVM)
 
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 set(PACKAGE_NAME llvm)
-set(PACKAGE_VERSION 2.6svn)
+set(PACKAGE_VERSION 3.0)
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
 set(PACKAGE_BUGREPORT "llvmbugs@cs.uiuc.edu")
 
@@ -59,6 +61,8 @@ set(LLVM_ALL_TARGETS
         XCore
         )
 
+# List of targets with JIT support:
+set(LLVM_TARGETS_WITH_JIT X86 PowerPC ARM Mips)
 
 if( MSVC )
     set(LLVM_TARGETS_TO_BUILD X86
@@ -70,36 +74,28 @@ else( MSVC )
         CACHE STRING "Semicolon-separated list of targets to build, or \"all\".")
 endif( MSVC )
 
+option(LLVM_ENABLE_CBE_PRINTF_A "Set to ON if CBE is enabled for printf %a output" ON)
+if(LLVM_ENABLE_CBE_PRINTF_A)
+    set(ENABLE_CBE_PRINTF_A 1)
+endif()
+
+option(LLVM_ENABLE_TIMESTAMPS "Enable embedding timestamp information in build" ON)
+if(LLVM_ENABLE_TIMESTAMPS)
+    set(ENABLE_TIMESTAMPS 1)
+endif()
+
+option(LLVM_ENABLE_FFI "Use libffi to call external functions from the interpreter" OFF)
+set(FFI_LIBRARY_DIR "" CACHE PATH "Additional directory, where CMake should search for libffi.so")
+set(FFI_INCLUDE_DIR "" CACHE PATH "Additional directory, where CMake should search for ffi.h or ffi/ffi.h")
+
+set(LLVM_TARGET_ARCH "host"
+        CACHE STRING "Set target to use for LLVM JIT or use \"host\" for automatic detection.")
+
 option(LLVM_ENABLE_THREADS "Use threads if available." ON)
 
-if( uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" )
-    option(LLVM_ENABLE_ASSERTIONS "Enable assertions" OFF)
-else()
-    option(LLVM_ENABLE_ASSERTIONS "Enable assertions" ON)
+if( LLVM_TARGETS_TO_BUILD STREQUAL "all" )
+    set( LLVM_TARGETS_TO_BUILD ${LLVM_ALL_TARGETS} )
 endif()
-
-if( LLVM_ENABLE_ASSERTIONS )
-    # MSVC doesn't like _DEBUG on release builds. See PR 4379.
-    if( NOT MSVC )
-        add_definitions( -D_DEBUG )
-    endif()
-    # On Release builds cmake automatically defines NDEBUG, so we
-    # explicitly undefine it:
-    if( uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" )
-        add_definitions( -UNDEBUG )
-    endif()
-else()
-    if( NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" )
-        add_definitions( -DNDEBUG )
-    endif()
-endif()
-
-if( uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" AND NOT LLVM_ENABLE_ASSERTIONS )
-    set( LLVM_COMPACT_SENTINELS 1 )
-else( uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" AND NOT LLVM_ENABLE_ASSERTIONS )
-    set( LLVM_COMPACT_SENTINELS 0 )
-endif( uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" AND NOT LLVM_ENABLE_ASSERTIONS )
-
 
 set(LLVM_ENUM_TARGETS "")
 foreach(c ${LLVM_TARGETS_TO_BUILD})
@@ -127,113 +123,86 @@ set(CMAKE_MODULE_PATH
         "${LLVM_MAIN_SRC_DIR}/cmake/modules"
         )
 
-
-if(WIN32)
-    if(CYGWIN)
-        set(LLVM_ON_WIN32 0)
-        set(LLVM_ON_UNIX 1)
-    else(CYGWIN)
-        set(LLVM_ON_WIN32 1)
-        set(LLVM_ON_UNIX 0)
-    endif(CYGWIN)
-    set(LTDL_SHLIB_EXT ".dll")
-    set(EXEEXT ".exe")
-    # Maximum path length is 160 for non-unicode paths
-    set(MAXPATHLEN 160)
-else(WIN32)
-    if(UNIX)
-        set(LLVM_ON_WIN32 0)
-        set(LLVM_ON_UNIX 1)
-        if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-            set(LTDL_SHLIB_EXT ".dylib")
-        else()
-            set(LTDL_SHLIB_EXT ".so")
-        endif()
-        set(EXEEXT "")
-        # FIXME: Maximum path length is currently set to 'safe' fixed value
-        set(MAXPATHLEN 2024)
-    else(UNIX)
-        MESSAGE(SEND_ERROR "Unable to determine platform")
-    endif(UNIX)
-endif(WIN32)
-
-include(config-ix)
 include(AddLLVMDefinitions)
 
 option(LLVM_ENABLE_PIC "Build Position-Independent Code" ON)
 
-set(ENABLE_PIC 0)
-if( LLVM_ENABLE_PIC )
-    if( SUPPORTS_FPIC_FLAG )
-        message(STATUS "Building with -fPIC")
-        add_llvm_definitions(-fPIC)
-        set(ENABLE_PIC 1)
-    else( SUPPORTS_FPIC_FLAG )
-        message(STATUS "Warning: -fPIC not supported.")
-    endif()
+# MSVC has a gazillion warnings with this.
+if( MSVC )
+    option(LLVM_ENABLE_WARNINGS "Enable compiler warnings." OFF)
+else( MSVC )
+    option(LLVM_ENABLE_WARNINGS "Enable compiler warnings." ON)
 endif()
+
+option(LLVM_ENABLE_PEDANTIC "Compile with pedantic enabled." ON)
+option(LLVM_ENABLE_WERROR "Fail and stop if a warning is triggered." OFF)
+
+if( uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" )
+    option(LLVM_ENABLE_ASSERTIONS "Enable assertions" OFF)
+else()
+    option(LLVM_ENABLE_ASSERTIONS "Enable assertions" ON)
+endif()
+
+include(config-ix)
+include(HandleLLVMOptions)
+configure_file(
+        ${LLVM_MAIN_INCLUDE_DIR}/llvm/Config/config.h.cmake
+        ${LLVM_BINARY_DIR}/include/llvm/Config/config.h)
+
+configure_file(
+        ${LLVM_MAIN_INCLUDE_DIR}/llvm/Config/llvm-config.h.cmake
+        ${LLVM_BINARY_DIR}/include/llvm/Config/llvm-config.h)
+
+configure_file(
+        ${LLVM_MAIN_INCLUDE_DIR}/llvm/Support/DataTypes.h.cmake
+        ${LLVM_BINARY_DIR}/include/llvm/Support/DataTypes.h)
 
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${LLVM_TOOLS_BINARY_DIR} )
 set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${LLVM_BINARY_DIR}/lib )
 set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${LLVM_BINARY_DIR}/lib )
 
-add_llvm_definitions( -D__STDC_LIMIT_MACROS )
-add_llvm_definitions( -D__STDC_CONSTANT_MACROS )
-
-if( CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT WIN32 )
-    # TODO: support other platforms and toolchains.
-    option(LLVM_BUILD_32_BITS "Build 32 bits executables and libraries." OFF)
-    if( LLVM_BUILD_32_BITS )
-        message(STATUS "Building 32 bits executables and libraries.")
-        add_llvm_definitions( -m32 )
-        list(APPEND CMAKE_EXE_LINKER_FLAGS -m32)
-        list(APPEND CMAKE_SHARED_LINKER_FLAGS -m32)
-    endif( LLVM_BUILD_32_BITS )
-endif( CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT WIN32 )
-
-if( MSVC )
-    # List of valid CRTs for MSVC
-    set(MSVC_CRT
-            MD
-            MDd)
-
-    set(LLVM_USE_CRT "" CACHE STRING "Specify VC++ CRT to use for debug/release configurations.")
-    add_llvm_definitions( -D_CRT_SECURE_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS )
-    add_llvm_definitions( -D_SCL_SECURE_NO_WARNINGS -DCRT_NONSTDC_NO_WARNINGS )
-    add_llvm_definitions( -D_SCL_SECURE_NO_DEPRECATE )
-    add_llvm_definitions( -wd4146 -wd4503 -wd4996 -wd4800 -wd4244 -wd4624 )
-    add_llvm_definitions( -wd4355 -wd4715 -wd4180 -wd4345 -wd4224 )
-
-    # Suppress 'new behavior: elements of array 'array' will be default initialized'
-    add_llvm_definitions( -wd4351 )
-
-    if (NOT ${LLVM_USE_CRT} STREQUAL "")
-        list(FIND MSVC_CRT ${LLVM_USE_CRT} idx)
-        if (idx LESS 0)
-            message(FATAL_ERROR "Invalid value for LLVM_USE_CRT: ${LLVM_USE_CRT}. Valid options are one of: ${MSVC_CRT}")
-        endif (idx LESS 0)
-        add_llvm_definitions("/${LLVM_USE_CRT}")
-        message(STATUS "Using VC++ CRT: ${LLVM_USE_CRT}")
-    endif (NOT ${LLVM_USE_CRT} STREQUAL "")
-endif( MSVC )
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories( ${LLVM_BINARY_DIR}/include ${LLVM_MAIN_INCLUDE_DIR})
 
-#include(AddLLVM)
+if( ${CMAKE_SYSTEM_NAME} MATCHES SunOS )
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include llvm/Support/Solaris.h")
+endif( ${CMAKE_SYSTEM_NAME} MATCHES SunOS )
+
+include(AddLLVM)
 include(TableGen)
 
-add_subdirectory(lib/System)
+macro(llvm_tablegen)
+    tablegen(LLVM ${ARGN})
+endmacro()
+
+if( MINGW )
+    # People report that -O3 is unreliable on MinGW. The traditional
+    # build also uses -O2 for that reason:
+    llvm_replace_compiler_option(CMAKE_CXX_FLAGS_RELEASE "-O3" "-O2")
+endif()
+
 add_subdirectory(lib/Support)
 
-set(LLVM_TABLEGEN "tblgen" CACHE
-        STRING "Native TableGen executable. Saves building one when cross-compiling.")
-# Effective tblgen executable to be used:
-set(LLVM_TABLEGEN_EXE ${LLVM_TABLEGEN})
+#set(LLVM_TABLEGEN "tblgen" CACHE
+#        STRING "Native TableGen executable. Saves building one when cross-compiling.")
+## Effective tblgen executable to be used:
+#set(LLVM_TABLEGEN_EXE ${LLVM_TABLEGEN})
 
-add_subdirectory(utils/TableGen)
+#add_subdirectory(utils/TableGen)
 
-add_subdirectory(include/llvm)
-add_subdirectory(lib/VMCore)
+#add_subdirectory(include/llvm)
+#add_subdirectory(lib/VMCore)
+#add_subdirectory(lib/CodeGen)
+#add_subdirectory(lib/CodeGen/SelectionDAG)
+#add_subdirectory(lib/CodeGen/AsmPrinter)
+#add_subdirectory(lib/Bitcode/Reader)
+#add_subdirectory(lib/Bitcode/Writer)
+#add_subdirectory(lib/Transforms/Utils)
+#add_subdirectory(lib/Transforms/Instrumentation)
+#add_subdirectory(lib/Transforms/Scalar)
+#add_subdirectory(lib/Transforms/IPO)
+#add_subdirectory(lib/Transforms/Hello)
 
 #set(LLVM_ENUM_ASM_PRINTERS "")
 #set(LLVM_ENUM_ASM_PARSERS "")
@@ -267,3 +236,5 @@ add_subdirectory(lib/VMCore)
 #)
 
 #add_subdirectory(lib/Target)
+
+add_subdirectory(cmake/modules)

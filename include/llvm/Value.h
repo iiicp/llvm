@@ -14,12 +14,9 @@
 #ifndef LLVM_VALUE_H
 #define LLVM_VALUE_H
 
-#include "llvm/AbstractTypeUser.h"
 #include "llvm/Use.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Twine.h"
 #include "llvm/Support/Casting.h"
-#include <iosfwd>
 #include <string>
 
 namespace llvm {
@@ -34,7 +31,6 @@ class GlobalVariable;
 class GlobalAlias;
 class InlineAsm;
 class ValueSymbolTable;
-class TypeSymbolTable;
 template<typename ValueTy> class StringMapEntry;
 template <typename ValueTy = Value>
 class AssertingVH;
@@ -43,6 +39,9 @@ class raw_ostream;
 class AssemblyAnnotationWriter;
 class ValueHandleBase;
 class LLVMContext;
+class Twine;
+class MDNode;
+class Type;
 
 //===----------------------------------------------------------------------===//
 //                                 Value Class
@@ -51,13 +50,13 @@ class LLVMContext;
 /// This is a very important LLVM class. It is the base class of all values 
 /// computed by a program that may be used as operands to other values. Value is
 /// the super class of other important classes such as Instruction and Function.
-/// All Values have a Type. Type is not a subclass of Value. All types can have
-/// a name and they should belong to some Module. Setting the name on the Value
+/// All Values have a Type. Type is not a subclass of Value. Some values can
+/// have a name and they belong to some Module.  Setting the name on the Value
 /// automatically updates the module's symbol table.
 ///
 /// Every value has a "use list" that keeps track of which other Values are
 /// using this Value.  A Value can also have an arbitrary number of ValueHandle
-/// objects that watch it and listen to RAUW and Destroy events see
+/// objects that watch it and listen to RAUW and Destroy events.  See
 /// llvm/Support/ValueHandle.h for details.
 ///
 /// @brief LLVM Value Representation
@@ -71,44 +70,48 @@ protected:
   /// interpretation.
   unsigned char SubclassOptionalData : 7;
 
+private:
   /// SubclassData - This member is defined by this class, but is not used for
   /// anything.  Subclasses can use it to hold whatever state they find useful.
   /// This field is initialized to zero by the ctor.
   unsigned short SubclassData;
-private:
-  PATypeHolder VTy;
+
+  Type *VTy;
   Use *UseList;
 
   friend class ValueSymbolTable; // Allow ValueSymbolTable to directly mod Name.
-  friend class SymbolTable;      // Allow SymbolTable to directly poke Name.
   friend class ValueHandleBase;
   ValueName *Name;
 
   void operator=(const Value &);     // Do not implement
   Value(const Value &);              // Do not implement
 
+protected:
+  /// printCustom - Value subclasses can override this to implement custom
+  /// printing behavior.
+  virtual void printCustom(raw_ostream &O) const;
+
+  Value(Type *Ty, unsigned scid);
 public:
-  Value(const Type *Ty, unsigned scid);
   virtual ~Value();
 
   /// dump - Support for debugging, callable in GDB: V->dump()
   //
-  virtual void dump() const;
+  void dump() const;
 
   /// print - Implement operator<< on Value.
   ///
-  void print(std::ostream &O, AssemblyAnnotationWriter *AAW = 0) const;
   void print(raw_ostream &O, AssemblyAnnotationWriter *AAW = 0) const;
 
   /// All values are typed, get the type of this value.
   ///
-  inline const Type *getType() const { return VTy; }
+  Type *getType() const { return VTy; }
 
   /// All values hold a context through their type.
   LLVMContext &getContext() const;
 
   // All values can potentially be named...
-  inline bool hasName() const { return Name != 0; }
+  bool hasName() const { return Name != 0; }
   ValueName *getValueName() const { return Name; }
   
   /// getName() - Return a constant reference to the value's name. This is cheap
@@ -144,27 +147,17 @@ public:
   ///
   void replaceAllUsesWith(Value *V);
 
-  // uncheckedReplaceAllUsesWith - Just like replaceAllUsesWith but dangerous.
-  // Only use when in type resolution situations!
-  void uncheckedReplaceAllUsesWith(Value *V);
-
-  /// clearOptionalData - Clear any optional optimization data from this Value.
-  /// Transformation passes must call this method whenever changing the IR
-  /// in a way that would affect the values produced by this Value, unless
-  /// it takes special care to ensure correctness in some other way.
-  void clearOptionalData() { SubclassOptionalData = 0; }
-
   //----------------------------------------------------------------------
   // Methods for handling the chain of uses of this Value.
   //
   typedef value_use_iterator<User>       use_iterator;
-  typedef value_use_iterator<const User> use_const_iterator;
+  typedef value_use_iterator<const User> const_use_iterator;
 
   bool               use_empty() const { return UseList == 0; }
   use_iterator       use_begin()       { return use_iterator(UseList); }
-  use_const_iterator use_begin() const { return use_const_iterator(UseList); }
+  const_use_iterator use_begin() const { return const_use_iterator(UseList); }
   use_iterator       use_end()         { return use_iterator(0);   }
-  use_const_iterator use_end()   const { return use_const_iterator(0);   }
+  const_use_iterator use_end()   const { return const_use_iterator(0);   }
   User              *use_back()        { return *use_begin(); }
   const User        *use_back()  const { return *use_begin(); }
 
@@ -173,7 +166,7 @@ public:
   /// traversing the whole use list.
   ///
   bool hasOneUse() const {
-    use_const_iterator I = use_begin(), E = use_end();
+    const_use_iterator I = use_begin(), E = use_end();
     if (I == E) return false;
     return ++I == E;
   }
@@ -190,7 +183,7 @@ public:
   bool isUsedInBasicBlock(const BasicBlock *BB) const;
 
   /// getNumUses - This method computes the number of uses of this Value.  This
-  /// is a linear time operation.  Use hasOneUse, hasNUses, or hasMoreThanNUses
+  /// is a linear time operation.  Use hasOneUse, hasNUses, or hasNUsesOrMore
   /// to check for specific values.
   unsigned getNumUses() const;
 
@@ -209,8 +202,9 @@ public:
     GlobalAliasVal,           // This is an instance of GlobalAlias
     GlobalVariableVal,        // This is an instance of GlobalVariable
     UndefValueVal,            // This is an instance of UndefValue
+    BlockAddressVal,          // This is an instance of BlockAddress
     ConstantExprVal,          // This is an instance of ConstantExpr
-    ConstantAggregateZeroVal, // This is an instance of ConstantAggregateNull
+    ConstantAggregateZeroVal, // This is an instance of ConstantAggregateZero
     ConstantIntVal,           // This is an instance of ConstantInt
     ConstantFPVal,            // This is an instance of ConstantFP
     ConstantArrayVal,         // This is an instance of ConstantArray
@@ -219,11 +213,14 @@ public:
     ConstantPointerNullVal,   // This is an instance of ConstantPointerNull
     MDNodeVal,                // This is an instance of MDNode
     MDStringVal,              // This is an instance of MDString
-    NamedMDNodeVal,           // This is an instance of NamedMDNode
     InlineAsmVal,             // This is an instance of InlineAsm
     PseudoSourceValueVal,     // This is an instance of PseudoSourceValue
+    FixedStackPseudoSourceValueVal, // This is an instance of 
+                                    // FixedStackPseudoSourceValue
     InstructionVal,           // This is an instance of Instruction
-    
+    // Enum values starting at InstructionVal are used for Instructions;
+    // don't add new values here!
+
     // Markers:
     ConstantFirstVal = FunctionVal,
     ConstantLastVal  = ConstantPointerNullVal
@@ -242,6 +239,19 @@ public:
     return SubclassID;
   }
 
+  /// getRawSubclassOptionalData - Return the raw optional flags value
+  /// contained in this value. This should only be used when testing two
+  /// Values for equivalence.
+  unsigned getRawSubclassOptionalData() const {
+    return SubclassOptionalData;
+  }
+
+  /// clearSubclassOptionalData - Clear the optional flags contained in
+  /// this value.
+  void clearSubclassOptionalData() {
+    SubclassOptionalData = 0;
+  }
+
   /// hasSameSubclassOptionalData - Test whether the optional flags contained
   /// in this value are equal to the optional flags in the given value.
   bool hasSameSubclassOptionalData(const Value *V) const {
@@ -254,14 +264,14 @@ public:
     SubclassOptionalData &= V->SubclassOptionalData;
   }
 
+  /// hasValueHandle - Return true if there is a value handle associated with
+  /// this value.
+  bool hasValueHandle() const { return HasValueHandle; }
+  
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Value *) {
     return true; // Values are always values.
   }
-
-  /// getRawType - This should only be used to implement the vmcore library.
-  ///
-  const Type *getRawType() const { return VTy.getRawType(); }
 
   /// stripPointerCasts - This method strips off any unneeded pointer
   /// casts from the specified value, returning the original uncasted value.
@@ -271,14 +281,9 @@ public:
     return const_cast<Value*>(this)->stripPointerCasts();
   }
 
-  /// getUnderlyingObject - This method strips off any GEP address adjustments
-  /// and pointer casts from the specified value, returning the original object
-  /// being addressed.  Note that the returned value has pointer type if the
-  /// specified value does.
-  Value *getUnderlyingObject();
-  const Value *getUnderlyingObject() const {
-    return const_cast<Value*>(this)->getUnderlyingObject();
-  }
+  /// isDereferenceablePointer - Test if this value is always a pointer to
+  /// allocated and suitably aligned memory for a simple load or store.
+  bool isDereferenceablePointer() const;
   
   /// DoPHITranslation - If this value is a PHI node with CurBB as its parent,
   /// return the value in the PHI node corresponding to PredBB.  If not, return
@@ -290,12 +295,25 @@ public:
                                 const BasicBlock *PredBB) const{
     return const_cast<Value*>(this)->DoPHITranslation(CurBB, PredBB);
   }
+  
+  /// MaximumAlignment - This is the greatest alignment value supported by
+  /// load, store, and alloca instructions, and global values.
+  static const unsigned MaximumAlignment = 1u << 29;
+  
+  /// mutateType - Mutate the type of this Value to be of the specified type.
+  /// Note that this is an extremely dangerous operation which can create
+  /// completely invalid IR very easily.  It is strongly recommended that you
+  /// recreate IR objects with the right types instead of mutating them in
+  /// place.
+  void mutateType(Type *Ty) {
+    VTy = Ty;
+  }
+  
+protected:
+  unsigned short getSubclassDataFromValue() const { return SubclassData; }
+  void setValueSubclassData(unsigned short D) { SubclassData = D; }
 };
 
-inline std::ostream &operator<<(std::ostream &OS, const Value &V) {
-  V.print(OS);
-  return OS;
-}
 inline raw_ostream &operator<<(raw_ostream &OS, const Value &V) {
   V.print(OS);
   return OS;
@@ -311,36 +329,67 @@ void Use::set(Value *V) {
 // isa - Provide some specializations of isa so that we don't have to include
 // the subtype header files to test to see if the value is a subclass...
 //
-template <> inline bool isa_impl<Constant, Value>(const Value &Val) {
-  return Val.getValueID() >= Value::ConstantFirstVal &&
-         Val.getValueID() <= Value::ConstantLastVal;
-}
-template <> inline bool isa_impl<Argument, Value>(const Value &Val) {
-  return Val.getValueID() == Value::ArgumentVal;
-}
-template <> inline bool isa_impl<InlineAsm, Value>(const Value &Val) {
-  return Val.getValueID() == Value::InlineAsmVal;
-}
-template <> inline bool isa_impl<Instruction, Value>(const Value &Val) {
-  return Val.getValueID() >= Value::InstructionVal;
-}
-template <> inline bool isa_impl<BasicBlock, Value>(const Value &Val) {
-  return Val.getValueID() == Value::BasicBlockVal;
-}
-template <> inline bool isa_impl<Function, Value>(const Value &Val) {
-  return Val.getValueID() == Value::FunctionVal;
-}
-template <> inline bool isa_impl<GlobalVariable, Value>(const Value &Val) {
-  return Val.getValueID() == Value::GlobalVariableVal;
-}
-template <> inline bool isa_impl<GlobalAlias, Value>(const Value &Val) {
-  return Val.getValueID() == Value::GlobalAliasVal;
-}
-template <> inline bool isa_impl<GlobalValue, Value>(const Value &Val) {
-  return isa<GlobalVariable>(Val) || isa<Function>(Val) ||
-         isa<GlobalAlias>(Val);
-}
-  
+template <> struct isa_impl<Constant, Value> {
+  static inline bool doit(const Value &Val) {
+    return Val.getValueID() >= Value::ConstantFirstVal &&
+      Val.getValueID() <= Value::ConstantLastVal;
+  }
+};
+
+template <> struct isa_impl<Argument, Value> {
+  static inline bool doit (const Value &Val) {
+    return Val.getValueID() == Value::ArgumentVal;
+  }
+};
+
+template <> struct isa_impl<InlineAsm, Value> { 
+  static inline bool doit(const Value &Val) {
+    return Val.getValueID() == Value::InlineAsmVal;
+  }
+};
+
+template <> struct isa_impl<Instruction, Value> { 
+  static inline bool doit(const Value &Val) {
+    return Val.getValueID() >= Value::InstructionVal;
+  }
+};
+
+template <> struct isa_impl<BasicBlock, Value> { 
+  static inline bool doit(const Value &Val) {
+    return Val.getValueID() == Value::BasicBlockVal;
+  }
+};
+
+template <> struct isa_impl<Function, Value> { 
+  static inline bool doit(const Value &Val) {
+    return Val.getValueID() == Value::FunctionVal;
+  }
+};
+
+template <> struct isa_impl<GlobalVariable, Value> { 
+  static inline bool doit(const Value &Val) {
+    return Val.getValueID() == Value::GlobalVariableVal;
+  }
+};
+
+template <> struct isa_impl<GlobalAlias, Value> { 
+  static inline bool doit(const Value &Val) {
+    return Val.getValueID() == Value::GlobalAliasVal;
+  }
+};
+
+template <> struct isa_impl<GlobalValue, Value> { 
+  static inline bool doit(const Value &Val) {
+    return isa<GlobalVariable>(Val) || isa<Function>(Val) ||
+      isa<GlobalAlias>(Val);
+  }
+};
+
+template <> struct isa_impl<MDNode, Value> { 
+  static inline bool doit(const Value &Val) {
+    return Val.getValueID() == Value::MDNodeVal;
+  }
+};
   
 // Value* is only 4-byte aligned.
 template<>

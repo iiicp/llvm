@@ -26,9 +26,10 @@
 #ifndef LLVM_ADT_STATISTIC_H
 #define LLVM_ADT_STATISTIC_H
 
-#include "llvm/System/Atomic.h"
+#include "llvm/Support/Atomic.h"
 
 namespace llvm {
+class raw_ostream;
 
 class Statistic {
 public:
@@ -53,46 +54,52 @@ public:
     Value = Val;
     return init();
   }
-  
+
   const Statistic &operator++() {
+    // FIXME: This function and all those that follow carefully use an
+    // atomic operation to update the value safely in the presence of
+    // concurrent accesses, but not to read the return value, so the
+    // return value is not thread safe.
     sys::AtomicIncrement(&Value);
     return init();
   }
-  
+
   unsigned operator++(int) {
     init();
     unsigned OldValue = Value;
     sys::AtomicIncrement(&Value);
     return OldValue;
   }
-  
+
   const Statistic &operator--() {
     sys::AtomicDecrement(&Value);
     return init();
   }
-  
+
   unsigned operator--(int) {
     init();
     unsigned OldValue = Value;
     sys::AtomicDecrement(&Value);
     return OldValue;
   }
-  
+
   const Statistic &operator+=(const unsigned &V) {
+    if (!V) return *this;
     sys::AtomicAdd(&Value, V);
     return init();
   }
-  
+
   const Statistic &operator-=(const unsigned &V) {
+    if (!V) return *this;
     sys::AtomicAdd(&Value, -V);
     return init();
   }
-  
+
   const Statistic &operator*=(const unsigned &V) {
     sys::AtomicMul(&Value, V);
     return init();
   }
-  
+
   const Statistic &operator/=(const unsigned &V) {
     sys::AtomicDiv(&Value, V);
     return init();
@@ -112,6 +119,18 @@ protected:
 // automatically passes the DEBUG_TYPE of the file into the statistic.
 #define STATISTIC(VARNAME, DESC) \
   static llvm::Statistic VARNAME = { DEBUG_TYPE, DESC, 0, 0 }
+
+/// \brief Enable the collection and printing of statistics.
+void EnableStatistics();
+
+/// \brief Check if statistics are enabled.
+bool AreStatisticsEnabled();
+
+/// \brief Print statistics to the file returned by CreateInfoOutputFile().
+void PrintStatistics();
+
+/// \brief Print statistics to the given output stream.
+void PrintStatistics(raw_ostream &OS);
 
 } // End llvm namespace
 

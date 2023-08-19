@@ -18,6 +18,7 @@
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/Support/DOTGraphTraits.h"
 
+#include <cassert>
 #include <vector>
 
 namespace llvm {
@@ -308,8 +309,7 @@ struct DOTGraphTraits<Trie<Payload> > : public DefaultDOTGraphTraits {
     return "Trie";
   }
 
-  static std::string getNodeLabel(NodeType* Node, const Trie<Payload>& T,
-                                  bool ShortNames) {
+  static std::string getNodeLabel(NodeType* Node, const Trie<Payload>& T) {
     if (T.getRoot() == Node)
       return "<Root>";
     else

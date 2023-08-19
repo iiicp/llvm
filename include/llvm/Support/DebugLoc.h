@@ -1,4 +1,4 @@
-//===---- llvm/DebugLoc.h - Debug Location Information ----------*- C++ -*-===//
+//===---- llvm/Support/DebugLoc.h - Debug Location Information --*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,93 +12,102 @@
 // 
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_DEBUGLOC_H
-#define LLVM_DEBUGLOC_H
+#ifndef LLVM_SUPPORT_DEBUGLOC_H
+#define LLVM_SUPPORT_DEBUGLOC_H
 
-#include "llvm/ADT/DenseMap.h"
-#include <vector>
+#include "llvm/ADT/DenseMapInfo.h"
 
 namespace llvm {
-  class GlobalVariable;
-
-  /// DebugLocTuple - Debug location tuple of filename id, line and column.
-  ///
-  struct DebugLocTuple {
-    GlobalVariable *CompileUnit;
-    unsigned Line, Col;
-
-    DebugLocTuple()
-      : CompileUnit(0), Line(~0U), Col(~0U) {};
-
-    DebugLocTuple(GlobalVariable *v, unsigned l, unsigned c)
-      : CompileUnit(v), Line(l), Col(c) {};
-
-    bool operator==(const DebugLocTuple &DLT) const {
-      return CompileUnit == DLT.CompileUnit &&
-             Line == DLT.Line && Col == DLT.Col;
-    }
-    bool operator!=(const DebugLocTuple &DLT) const {
-      return !(*this == DLT);
-    }
-  };
-
-  /// DebugLoc - Debug location id. This is carried by SDNode and MachineInstr
-  /// to index into a vector of unique debug location tuples.
-  class DebugLoc {
-    unsigned Idx;
-
-  public:
-    DebugLoc() : Idx(~0U) {}  // Defaults to invalid.
-
-    static DebugLoc getUnknownLoc()   { DebugLoc L; L.Idx = ~0U; return L; }
-    static DebugLoc get(unsigned idx) { DebugLoc L; L.Idx = idx; return L; }
-
-    unsigned getIndex() const { return Idx; }
-
-    /// isUnknown - Return true if there is no debug info for the SDNode /
-    /// MachineInstr.
-    bool isUnknown() const { return Idx == ~0U; }
-
-    bool operator==(const DebugLoc &DL) const { return Idx == DL.Idx; }
-    bool operator!=(const DebugLoc &DL) const { return !(*this == DL); }
-  };
-
-  // Partially specialize DenseMapInfo for DebugLocTyple.
-  template<>  struct DenseMapInfo<DebugLocTuple> {
-    static inline DebugLocTuple getEmptyKey() {
-      return DebugLocTuple(0, ~0U, ~0U);
-    }
-    static inline DebugLocTuple getTombstoneKey() {
-      return DebugLocTuple((GlobalVariable*)~1U, ~1U, ~1U);
-    }
-    static unsigned getHashValue(const DebugLocTuple &Val) {
-      return DenseMapInfo<GlobalVariable*>::getHashValue(Val.CompileUnit) ^
-             DenseMapInfo<unsigned>::getHashValue(Val.Line) ^
-             DenseMapInfo<unsigned>::getHashValue(Val.Col);
-    }
-    static bool isEqual(const DebugLocTuple &LHS, const DebugLocTuple &RHS) {
-      return LHS.CompileUnit == RHS.CompileUnit &&
-             LHS.Line        == RHS.Line &&
-             LHS.Col         == RHS.Col;
-    }
-
-    static bool isPod() { return true; }
-  };
-
-  /// DebugLocTracker - This class tracks debug location information.
-  ///
-  struct DebugLocTracker {
-    /// DebugLocations - A vector of unique DebugLocTuple's.
-    ///
-    std::vector<DebugLocTuple> DebugLocations;
-
-    /// DebugIdMap - This maps DebugLocTuple's to indices into the
-    /// DebugLocations vector.
-    DenseMap<DebugLocTuple, unsigned> DebugIdMap;
-
-    DebugLocTracker() {}
-  };
+  class MDNode;
+  class LLVMContext;
   
+  /// DebugLoc - Debug location id.  This is carried by Instruction, SDNode,
+  /// and MachineInstr to compactly encode file/line/scope information for an
+  /// operation.
+  class DebugLoc {
+    friend struct DenseMapInfo<DebugLoc>;
+
+    /// getEmptyKey() - A private constructor that returns an unknown that is
+    /// not equal to the tombstone key or DebugLoc().
+    static DebugLoc getEmptyKey() {
+      DebugLoc DL;
+      DL.LineCol = 1;
+      return DL;
+    }
+
+    /// getTombstoneKey() - A private constructor that returns an unknown that
+    /// is not equal to the empty key or DebugLoc().
+    static DebugLoc getTombstoneKey() {
+      DebugLoc DL;
+      DL.LineCol = 2;
+      return DL;
+    }
+
+    /// LineCol - This 32-bit value encodes the line and column number for the
+    /// location, encoded as 24-bits for line and 8 bits for col.  A value of 0
+    /// for either means unknown.
+    unsigned LineCol;
+    
+    /// ScopeIdx - This is an opaque ID# for Scope/InlinedAt information,
+    /// decoded by LLVMContext.  0 is unknown.
+    int ScopeIdx;
+  public:
+    DebugLoc() : LineCol(0), ScopeIdx(0) {}  // Defaults to unknown.
+    
+    /// get - Get a new DebugLoc that corresponds to the specified line/col
+    /// scope/inline location.
+    static DebugLoc get(unsigned Line, unsigned Col,
+                        MDNode *Scope, MDNode *InlinedAt = 0);
+    
+    /// getFromDILocation - Translate the DILocation quad into a DebugLoc.
+    static DebugLoc getFromDILocation(MDNode *N);
+
+    /// getFromDILexicalBlock - Translate the DILexicalBlock into a DebugLoc.
+    static DebugLoc getFromDILexicalBlock(MDNode *N);
+
+    /// isUnknown - Return true if this is an unknown location.
+    bool isUnknown() const { return ScopeIdx == 0; }
+    
+    unsigned getLine() const {
+      return (LineCol << 8) >> 8;  // Mask out column.
+    }
+    
+    unsigned getCol() const {
+      return LineCol >> 24;
+    }
+    
+    /// getScope - This returns the scope pointer for this DebugLoc, or null if
+    /// invalid.
+    MDNode *getScope(const LLVMContext &Ctx) const;
+    
+    /// getInlinedAt - This returns the InlinedAt pointer for this DebugLoc, or
+    /// null if invalid or not present.
+    MDNode *getInlinedAt(const LLVMContext &Ctx) const;
+    
+    /// getScopeAndInlinedAt - Return both the Scope and the InlinedAt values.
+    void getScopeAndInlinedAt(MDNode *&Scope, MDNode *&IA,
+                              const LLVMContext &Ctx) const;
+    
+    
+    /// getAsMDNode - This method converts the compressed DebugLoc node into a
+    /// DILocation compatible MDNode.
+    MDNode *getAsMDNode(const LLVMContext &Ctx) const;
+    
+    bool operator==(const DebugLoc &DL) const {
+      return LineCol == DL.LineCol && ScopeIdx == DL.ScopeIdx;
+    }
+    bool operator!=(const DebugLoc &DL) const { return !(*this == DL); }
+
+    void dump(const LLVMContext &Ctx) const;
+  };
+
+  template <>
+  struct DenseMapInfo<DebugLoc> {
+    static DebugLoc getEmptyKey();
+    static DebugLoc getTombstoneKey();
+    static unsigned getHashValue(const DebugLoc &Key);
+    static bool isEqual(const DebugLoc &LHS, const DebugLoc &RHS);
+  };
 } // end namespace llvm
 
 #endif /* LLVM_DEBUGLOC_H */

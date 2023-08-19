@@ -18,9 +18,10 @@
 #define LLVM_ADT_STLEXTRAS_H
 
 #include <cstddef> // for std::size_t
+#include <cstdlib> // for qsort
 #include <functional>
+#include <iterator>
 #include <utility> // for std::pair
-#include "llvm/ADT/iterator.h"
 
 namespace llvm {
 
@@ -185,25 +186,21 @@ inline ItTy prior(ItTy it)
 //   // do stuff
 // else
 //   // do other stuff
+template <typename T1, typename T2>
+struct tier {
+  typedef T1 &first_type;
+  typedef T2 &second_type;
 
-namespace
-{
-  template <typename T1, typename T2>
-  struct tier {
-    typedef T1 &first_type;
-    typedef T2 &second_type;
+  first_type first;
+  second_type second;
 
-    first_type first;
-    second_type second;
-
-    tier(first_type f, second_type s) : first(f), second(s) { }
-    tier& operator=(const std::pair<T1, T2>& p) {
-      first = p.first;
-      second = p.second;
-      return *this;
-    }
-  };
-}
+  tier(first_type f, second_type s) : first(f), second(s) { }
+  tier& operator=(const std::pair<T1, T2>& p) {
+    first = p.first;
+    second = p.second;
+    return *this;
+  }
+};
 
 template <typename T1, typename T2>
 inline tier<T1, T2> tie(T1& f, T2& s) {
@@ -224,7 +221,7 @@ inline T *array_endof(T (&x)[N]) {
 
 /// Find the length of an array.
 template<class T, std::size_t N>
-inline size_t array_lengthof(T (&x)[N]) {
+inline size_t array_lengthof(T (&)[N]) {
   return N;
 }
 
@@ -242,7 +239,7 @@ static inline int array_pod_sort_comparator(const void *P1, const void *P2) {
 /// get_array_pad_sort_comparator - This is an internal helper function used to
 /// get type deduction of T right.
 template<typename T>
-static int (*get_array_pad_sort_comparator(const T &X))
+static int (*get_array_pad_sort_comparator(const T &))
              (const void*, const void*) {
   return array_pod_sort_comparator<T>;
 }
@@ -268,6 +265,36 @@ static inline void array_pod_sort(IteratorTy Start, IteratorTy End) {
   if (Start == End) return;
   qsort(&*Start, End-Start, sizeof(*Start),
         get_array_pad_sort_comparator(*Start));
+}
+
+template<class IteratorTy>
+static inline void array_pod_sort(IteratorTy Start, IteratorTy End,
+                                  int (*Compare)(const void*, const void*)) {
+  // Don't dereference start iterator of empty sequence.
+  if (Start == End) return;
+  qsort(&*Start, End-Start, sizeof(*Start), Compare);
+}
+  
+//===----------------------------------------------------------------------===//
+//     Extra additions to <algorithm>
+//===----------------------------------------------------------------------===//
+
+/// For a container of pointers, deletes the pointers and then clears the
+/// container.
+template<typename Container>
+void DeleteContainerPointers(Container &C) {
+  for (typename Container::iterator I = C.begin(), E = C.end(); I != E; ++I)
+    delete *I;
+  C.clear();
+}
+
+/// In a container of pairs (usually a map) whose second element is a pointer,
+/// deletes the second elements and then clears the container.
+template<typename Container>
+void DeleteContainerSeconds(Container &C) {
+  for (typename Container::iterator I = C.begin(), E = C.end(); I != E; ++I)
+    delete I->second;
+  C.clear();
 }
 
 } // End llvm namespace

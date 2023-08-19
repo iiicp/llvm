@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cassert>
 #include <climits>
+#include <cstdlib>
 #include <cstring>
 
 namespace llvm {
@@ -49,6 +50,11 @@ public:
 
     ~reference() {}
 
+    reference &operator=(reference t) {
+      *this = bool(t);
+      return *this;
+    }
+
     reference& operator=(bool t) {
       if (t)
         *WordRef |= 1L << BitPos;
@@ -72,7 +78,7 @@ public:
   /// bits are initialized to the specified value.
   explicit BitVector(unsigned s, bool t = false) : Size(s) {
     Capacity = NumBitWords(s);
-    Bits = new BitWord[Capacity];
+    Bits = (BitWord *)std::malloc(Capacity * sizeof(BitWord));
     init_words(Bits, Capacity, t);
     if (t)
       clear_unused_bits();
@@ -87,13 +93,16 @@ public:
     }
 
     Capacity = NumBitWords(RHS.size());
-    Bits = new BitWord[Capacity];
-    std::copy(RHS.Bits, &RHS.Bits[Capacity], Bits);
+    Bits = (BitWord *)std::malloc(Capacity * sizeof(BitWord));
+    std::memcpy(Bits, RHS.Bits, Capacity * sizeof(BitWord));
   }
 
   ~BitVector() {
-    delete[] Bits;
+    std::free(Bits);
   }
+
+  /// empty - Tests whether there are no bits in this bitvector.
+  bool empty() const { return Size == 0; }
 
   /// size - Returns the number of bits in this bitvector.
   unsigned size() const { return Size; }
@@ -117,6 +126,12 @@ public:
       if (Bits[i] != 0)
         return true;
     return false;
+  }
+
+  /// all - Returns true if all bits are set.
+  bool all() const {
+    // TODO: Optimize this.
+    return count() == size();
   }
 
   /// none - Returns true if none of the bits are set.
@@ -304,15 +319,17 @@ public:
   }
 
   BitVector &operator|=(const BitVector &RHS) {
-    assert(Size == RHS.Size && "Illegal operation!");
-    for (unsigned i = 0; i < NumBitWords(size()); ++i)
+    if (size() < RHS.size())
+      resize(RHS.size());
+    for (size_t i = 0, e = NumBitWords(RHS.size()); i != e; ++i)
       Bits[i] |= RHS.Bits[i];
     return *this;
   }
 
   BitVector &operator^=(const BitVector &RHS) {
-    assert(Size == RHS.Size && "Illegal operation!");
-    for (unsigned i = 0; i < NumBitWords(size()); ++i)
+    if (size() < RHS.size())
+      resize(RHS.size());
+    for (size_t i = 0, e = NumBitWords(RHS.size()); i != e; ++i)
       Bits[i] ^= RHS.Bits[i];
     return *this;
   }
@@ -324,21 +341,28 @@ public:
     Size = RHS.size();
     unsigned RHSWords = NumBitWords(Size);
     if (Size <= Capacity * BITWORD_SIZE) {
-      std::copy(RHS.Bits, &RHS.Bits[RHSWords], Bits);
+      if (Size)
+        std::memcpy(Bits, RHS.Bits, RHSWords * sizeof(BitWord));
       clear_unused_bits();
       return *this;
     }
 
     // Grow the bitvector to have enough elements.
     Capacity = RHSWords;
-    BitWord *NewBits = new BitWord[Capacity];
-    std::copy(RHS.Bits, &RHS.Bits[RHSWords], NewBits);
+    BitWord *NewBits = (BitWord *)std::malloc(Capacity * sizeof(BitWord));
+    std::memcpy(NewBits, RHS.Bits, Capacity * sizeof(BitWord));
 
     // Destroy the old bits.
-    delete[] Bits;
+    std::free(Bits);
     Bits = NewBits;
 
     return *this;
+  }
+
+  void swap(BitVector &RHS) {
+    std::swap(Bits, RHS.Bits);
+    std::swap(Size, RHS.Size);
+    std::swap(Capacity, RHS.Capacity);
   }
 
 private:
@@ -367,17 +391,8 @@ private:
   }
 
   void grow(unsigned NewSize) {
-    unsigned OldCapacity = Capacity;
-    Capacity = NumBitWords(NewSize);
-    BitWord *NewBits = new BitWord[Capacity];
-
-    // Copy the old bits over.
-    if (OldCapacity != 0)
-      std::copy(Bits, &Bits[OldCapacity], NewBits);
-
-    // Destroy the old bits.
-    delete[] Bits;
-    Bits = NewBits;
+    Capacity = std::max(NumBitWords(NewSize), Capacity * 2);
+    Bits = (BitWord *)std::realloc(Bits, Capacity * sizeof(BitWord));
 
     clear_unused_bits();
   }
@@ -406,4 +421,13 @@ inline BitVector operator^(const BitVector &LHS, const BitVector &RHS) {
 }
 
 } // End llvm namespace
+
+namespace std {
+  /// Implement std::swap in terms of BitVector swap.
+  inline void
+  swap(llvm::BitVector &LHS, llvm::BitVector &RHS) {
+    LHS.swap(RHS);
+  }
+}
+
 #endif

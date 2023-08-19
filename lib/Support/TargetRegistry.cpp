@@ -6,13 +6,18 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-#include "llvm/Target/TargetRegistry.h"
-#include "llvm/System/Host.h"
+
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cassert>
+#include <vector>
 using namespace llvm;
 
 // Clients are responsible for avoid race conditions in registration.
-static Target *FirstTarget = nullptr;
+static Target *FirstTarget = 0;
 
 TargetRegistry::iterator TargetRegistry::begin() {
   return iterator(FirstTarget);
@@ -23,15 +28,15 @@ const Target *TargetRegistry::lookupTarget(const std::string &TT,
   // Provide special warning when no targets are initialized.
   if (begin() == end()) {
     Error = "Unable to find target for this triple (no targets are registered)";
-    return nullptr;
+    return 0;
   }
-  const Target *Best = nullptr, *EquallyBest = nullptr;
+  const Target *Best = 0, *EquallyBest = 0;
   unsigned BestQuality = 0;
   for (iterator it = begin(), ie = end(); it != ie; ++it) {
     if (unsigned Qual = it->TripleMatchQualityFn(TT)) {
       if (!Best || Qual > BestQuality) {
         Best = &*it;
-        EquallyBest = nullptr;
+        EquallyBest = 0;
         BestQuality = Qual;
       } else if (Qual == BestQuality)
         EquallyBest = &*it;
@@ -39,8 +44,9 @@ const Target *TargetRegistry::lookupTarget(const std::string &TT,
   }
 
   if (!Best) {
-    Error = "No available targets are compatible with this triple";
-    return nullptr;
+    Error = "No available targets are compatible with this triple, "
+      "see -version for the available targets.";
+    return 0;
   }
 
   // Otherwise, take the best target, but make sure we don't have two equally
@@ -48,7 +54,7 @@ const Target *TargetRegistry::lookupTarget(const std::string &TT,
   if (EquallyBest) {
     Error = std::string("Cannot choose between targets \"") +
       Best->Name  + "\" and \"" + EquallyBest->Name + "\"";
-    return nullptr;
+    return 0;
   }
 
   return Best;
@@ -82,9 +88,35 @@ const Target *TargetRegistry::getClosestTargetForJIT(std::string &Error) {
 
   if (TheTarget && !TheTarget->hasJIT()) {
     Error = "No JIT compatible target available for this host";
-    return nullptr;
+    return 0;
   }
 
   return TheTarget;
 }
 
+static int TargetArraySortFn(const void *LHS, const void *RHS) {
+  typedef std::pair<StringRef, const Target*> pair_ty;
+  return ((const pair_ty*)LHS)->first.compare(((const pair_ty*)RHS)->first);
+}
+
+void TargetRegistry::printRegisteredTargetsForVersion() {
+  std::vector<std::pair<StringRef, const Target*> > Targets;
+  size_t Width = 0;
+  for (TargetRegistry::iterator I = TargetRegistry::begin(),
+       E = TargetRegistry::end();
+       I != E; ++I) {
+    Targets.push_back(std::make_pair(I->getName(), &*I));
+    Width = std::max(Width, Targets.back().first.size());
+  }
+  array_pod_sort(Targets.begin(), Targets.end(), TargetArraySortFn);
+
+  raw_ostream &OS = outs();
+  OS << "  Registered Targets:\n";
+  for (unsigned i = 0, e = Targets.size(); i != e; ++i) {
+    OS << "    " << Targets[i].first;
+    OS.indent(Width - Targets[i].first.size()) << " - "
+      << Targets[i].second->getShortDescription() << '\n';
+  }
+  if (Targets.empty())
+    OS << "    (none)\n";
+}

@@ -17,7 +17,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Allocator.h"
 #include <cstring>
-#include <string>
 
 namespace llvm {
   template<typename ValueT>
@@ -81,27 +80,17 @@ protected:
   StringMapImpl(unsigned InitSize, unsigned ItemSize);
   void RehashTable();
 
-  /// ShouldRehash - Return true if the table should be rehashed after a new
-  /// element was recently inserted.
-  bool ShouldRehash() const {
-    // If the hash table is now more than 3/4 full, or if fewer than 1/8 of
-    // the buckets are empty (meaning that many are filled with tombstones),
-    // grow the table.
-    return NumItems*4 > NumBuckets*3 ||
-           NumBuckets-(NumItems+NumTombstones) < NumBuckets/8;
-  }
-
   /// LookupBucketFor - Look up the bucket that the specified string should end
   /// up in.  If it already exists as a key in the map, the Item pointer for the
   /// specified bucket will be non-null.  Otherwise, it will be null.  In either
   /// case, the FullHashValue field of the bucket will be set to the hash value
   /// of the string.
-  unsigned LookupBucketFor(const StringRef &Key);
+  unsigned LookupBucketFor(StringRef Key);
 
   /// FindKey - Look up the bucket that contains the specified key. If it exists
   /// in the map, return the bucket number of the key.  Otherwise return -1.
   /// This does not modify the map.
-  int FindKey(const StringRef &Key) const;
+  int FindKey(StringRef Key) const;
 
   /// RemoveKey - Remove the specified StringMapEntry from the table, but do not
   /// delete it.  This aborts if the value isn't in the table.
@@ -109,7 +98,7 @@ protected:
 
   /// RemoveKey - Remove the StringMapEntry for the specified key from the
   /// table, returning it.  If the key is not in the table, this returns null.
-  StringMapEntryBase *RemoveKey(const StringRef &Key);
+  StringMapEntryBase *RemoveKey(StringRef Key);
 private:
   void init(unsigned Size);
 public:
@@ -137,8 +126,8 @@ public:
   StringMapEntry(unsigned strLen, const ValueTy &V)
     : StringMapEntryBase(strLen), second(V) {}
 
-  StringRef getKey() const { 
-    return StringRef(getKeyData(), getKeyLength()); 
+  StringRef getKey() const {
+    return StringRef(getKeyData(), getKeyLength());
   }
 
   const ValueTy &getValue() const { return second; }
@@ -151,7 +140,7 @@ public:
   /// StringMapEntry object.
   const char *getKeyData() const {return reinterpret_cast<const char*>(this+1);}
 
-  const char *first() const { return getKeyData(); }
+  StringRef first() const { return StringRef(getKeyData(), getKeyLength()); }
 
   /// Create - Create a StringMapEntry for the specified key and default
   /// construct the value.
@@ -167,7 +156,7 @@ public:
 
     unsigned AllocSize = static_cast<unsigned>(sizeof(StringMapEntry))+
       KeyLength+1;
-    unsigned Alignment = llvm_alignof<StringMapEntry>();
+    unsigned Alignment = alignOf<StringMapEntry>();
 
     StringMapEntry *NewItem =
       static_cast<StringMapEntry*>(Allocator.Allocate(AllocSize,Alignment));
@@ -217,6 +206,14 @@ public:
     return GetStringMapEntryFromValue(const_cast<ValueTy&>(V));
   }
 
+  /// GetStringMapEntryFromKeyData - Given key data that is known to be embedded
+  /// into a StringMapEntry, return the StringMapEntry itself.
+  static StringMapEntry &GetStringMapEntryFromKeyData(const char *KeyData) {
+    char *Ptr = const_cast<char*>(KeyData) - sizeof(StringMapEntry<ValueTy>);
+    return *reinterpret_cast<StringMapEntry*>(Ptr);
+  }
+
+
   /// Destroy - Destroy this StringMapEntry, releasing memory back to the
   /// specified allocator.
   template<typename AllocatorTy>
@@ -246,20 +243,27 @@ public:
   StringMap() : StringMapImpl(static_cast<unsigned>(sizeof(MapEntryTy))) {}
   explicit StringMap(unsigned InitialSize)
     : StringMapImpl(InitialSize, static_cast<unsigned>(sizeof(MapEntryTy))) {}
+
+  explicit StringMap(AllocatorTy A)
+    : StringMapImpl(static_cast<unsigned>(sizeof(MapEntryTy))), Allocator(A) {}
+
   explicit StringMap(const StringMap &RHS)
     : StringMapImpl(static_cast<unsigned>(sizeof(MapEntryTy))) {
     assert(RHS.empty() &&
            "Copy ctor from non-empty stringmap not implemented yet!");
+    (void)RHS;
   }
   void operator=(const StringMap &RHS) {
     assert(RHS.empty() &&
            "assignment from non-empty stringmap not implemented yet!");
+    (void)RHS;
     clear();
   }
 
-
-  AllocatorTy &getAllocator() { return Allocator; }
-  const AllocatorTy &getAllocator() const { return Allocator; }
+  typedef typename ReferenceAdder<AllocatorTy>::result AllocatorRefTy;
+  typedef typename ReferenceAdder<const AllocatorTy>::result AllocatorCRefTy;
+  AllocatorRefTy getAllocator() { return Allocator; }
+  AllocatorCRefTy getAllocator() const { return Allocator; }
 
   typedef const char* key_type;
   typedef ValueTy mapped_type;
@@ -282,13 +286,13 @@ public:
     return const_iterator(TheTable+NumBuckets, true);
   }
 
-  iterator find(const StringRef &Key) {
+  iterator find(StringRef Key) {
     int Bucket = FindKey(Key);
     if (Bucket == -1) return end();
     return iterator(TheTable+Bucket);
   }
 
-  const_iterator find(const StringRef &Key) const {
+  const_iterator find(StringRef Key) const {
     int Bucket = FindKey(Key);
     if (Bucket == -1) return end();
     return const_iterator(TheTable+Bucket);
@@ -296,18 +300,18 @@ public:
 
    /// lookup - Return the entry for the specified key, or a default
   /// constructed value if no such entry exists.
-  ValueTy lookup(const StringRef &Key) const {
+  ValueTy lookup(StringRef Key) const {
     const_iterator it = find(Key);
     if (it != end())
       return it->second;
     return ValueTy();
   }
 
-  ValueTy& operator[](const StringRef &Key) {
+  ValueTy &operator[](StringRef Key) {
     return GetOrCreateValue(Key).getValue();
   }
 
-  size_type count(const StringRef &Key) const {
+  size_type count(StringRef Key) const {
     return find(Key) == end() ? 0 : 1;
   }
 
@@ -324,9 +328,9 @@ public:
       --NumTombstones;
     Bucket.Item = KeyValue;
     ++NumItems;
+    assert(NumItems + NumTombstones <= NumBuckets);
 
-    if (ShouldRehash())
-      RehashTable();
+    RehashTable();
     return true;
   }
 
@@ -344,14 +348,14 @@ public:
     }
 
     NumItems = 0;
+    NumTombstones = 0;
   }
 
   /// GetOrCreateValue - Look up the specified key in the table.  If a value
   /// exists, return it.  Otherwise, default construct a value, insert it, and
   /// return.
   template <typename InitTy>
-  StringMapEntry<ValueTy> &GetOrCreateValue(const StringRef &Key,
-                                            InitTy Val) {
+  MapEntryTy &GetOrCreateValue(StringRef Key, InitTy Val) {
     unsigned BucketNo = LookupBucketFor(Key);
     ItemBucket &Bucket = TheTable[BucketNo];
     if (Bucket.Item && Bucket.Item != getTombstoneVal())
@@ -363,30 +367,18 @@ public:
     if (Bucket.Item == getTombstoneVal())
       --NumTombstones;
     ++NumItems;
+    assert(NumItems + NumTombstones <= NumBuckets);
 
     // Fill in the bucket for the hash table.  The FullHashValue was already
     // filled in by LookupBucketFor.
     Bucket.Item = NewItem;
 
-    if (ShouldRehash())
-      RehashTable();
+    RehashTable();
     return *NewItem;
   }
 
-  StringMapEntry<ValueTy> &GetOrCreateValue(const StringRef &Key) {
+  MapEntryTy &GetOrCreateValue(StringRef Key) {
     return GetOrCreateValue(Key, ValueTy());
-  }
-
-  template <typename InitTy>
-  StringMapEntry<ValueTy> &GetOrCreateValue(const char *KeyStart,
-                                            const char *KeyEnd,
-                                            InitTy Val) {
-    return GetOrCreateValue(StringRef(KeyStart, KeyEnd - KeyStart), Val);
-  }
-
-  StringMapEntry<ValueTy> &GetOrCreateValue(const char *KeyStart,
-                                            const char *KeyEnd) {
-    return GetOrCreateValue(StringRef(KeyStart, KeyEnd - KeyStart));
   }
 
   /// remove - Remove the specified key/value pair from the map, but do not
@@ -401,7 +393,7 @@ public:
     V.Destroy(Allocator);
   }
 
-  bool erase(const StringRef &Key) {
+  bool erase(StringRef Key) {
     iterator I = find(Key);
     if (I == end()) return false;
     erase(I);

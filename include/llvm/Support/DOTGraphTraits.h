@@ -27,6 +27,17 @@ namespace llvm {
 /// implementations.
 ///
 struct DefaultDOTGraphTraits {
+private:
+  bool IsSimple;
+
+protected:
+  bool isSimple() {
+    return IsSimple;
+  }
+
+public:
+  explicit DefaultDOTGraphTraits(bool simple=false) : IsSimple (simple) {}
+
   /// getGraphName - Return the label for the graph as a whole.  Printed at the
   /// top of the graph.
   ///
@@ -48,11 +59,16 @@ struct DefaultDOTGraphTraits {
     return false;
   }
 
+  /// isNodeHidden - If the function returns true, the given node is not
+  /// displayed in the graph.
+  static bool isNodeHidden(const void *Node) {
+    return false;
+  }
+
   /// getNodeLabel - Given a node and a pointer to the top level graph, return
   /// the label to print in the node.
   template<typename GraphType>
-  static std::string getNodeLabel(const void *Node,
-                                  const GraphType& Graph, bool ShortNames) {
+  std::string getNodeLabel(const void *Node, const GraphType& Graph) {
     return "";
   }
 
@@ -73,8 +89,9 @@ struct DefaultDOTGraphTraits {
 
   /// If you want to override the dot attributes printed for a particular edge,
   /// override this method.
-  template<typename EdgeIter>
-  static std::string getEdgeAttributes(const void *Node, EdgeIter EI) {
+  template<typename EdgeIter, typename GraphType>
+  static std::string getEdgeAttributes(const void *Node, EdgeIter EI,
+                                       const GraphType& Graph) {
     return "";
   }
 
@@ -135,7 +152,9 @@ struct DefaultDOTGraphTraits {
 /// from DefaultDOTGraphTraits if you don't need to override everything.
 ///
 template <typename Ty>
-struct DOTGraphTraits : public DefaultDOTGraphTraits {};
+struct DOTGraphTraits : public DefaultDOTGraphTraits {
+  DOTGraphTraits (bool simple=false) : DefaultDOTGraphTraits (simple) {}
+};
 
 } // End llvm namespace
 

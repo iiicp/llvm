@@ -38,8 +38,10 @@
 #ifndef LLVM_ADT_ILIST_H
 #define LLVM_ADT_ILIST_H
 
-#include "llvm/ADT/iterator.h"
+#include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <iterator>
 
 namespace llvm {
 
@@ -121,15 +123,15 @@ struct ilist_node_traits {
 /// for all common operations.
 ///
 template<typename NodeTy>
-struct ilist_default_traits : ilist_nextprev_traits<NodeTy>,
-                              ilist_sentinel_traits<NodeTy>,
-                              ilist_node_traits<NodeTy> {
+struct ilist_default_traits : public ilist_nextprev_traits<NodeTy>,
+                              public ilist_sentinel_traits<NodeTy>,
+                              public ilist_node_traits<NodeTy> {
 };
 
 // Template traits for intrusive list.  By specializing this template class, you
 // can change what next/prev fields are used to store the links...
 template<typename NodeTy>
-struct ilist_traits : ilist_default_traits<NodeTy> {};
+struct ilist_traits : public ilist_default_traits<NodeTy> {};
 
 // Const traits are the same as nonconst traits...
 template<typename Ty>
@@ -140,11 +142,12 @@ struct ilist_traits<const Ty> : public ilist_traits<Ty> {};
 //
 template<typename NodeTy>
 class ilist_iterator
-  : public bidirectional_iterator<NodeTy, ptrdiff_t> {
+  : public std::iterator<std::bidirectional_iterator_tag, NodeTy, ptrdiff_t> {
 
 public:
   typedef ilist_traits<NodeTy> Traits;
-  typedef bidirectional_iterator<NodeTy, ptrdiff_t> super;
+  typedef std::iterator<std::bidirectional_iterator_tag,
+                        NodeTy, ptrdiff_t> super;
 
   typedef typename super::value_type value_type;
   typedef typename super::difference_type difference_type;
@@ -189,12 +192,10 @@ public:
 
   // Accessors...
   operator pointer() const {
-    assert(Traits::getNext(NodePtr) != 0 && "Dereferencing end()!");
     return NodePtr;
   }
 
   reference operator*() const {
-    assert(Traits::getNext(NodePtr) != 0 && "Dereferencing end()!");
     return *NodePtr;
   }
   pointer operator->() const { return &operator*(); }
@@ -215,7 +216,6 @@ public:
   }
   ilist_iterator &operator++() {      // preincrement - Advance
     NodePtr = Traits::getNext(NodePtr);
-    assert(NodePtr && "++'d off the end of an ilist!");
     return *this;
   }
   ilist_iterator operator--(int) {    // postdecrement operators...
@@ -289,7 +289,7 @@ template<typename NodeTy> struct simplify_type<const ilist_iterator<NodeTy> > {
 //===----------------------------------------------------------------------===//
 //
 /// iplist - The subset of list functionality that can safely be used on nodes
-/// of polymorphic types, i.e. a heterogenous list with a common base class that
+/// of polymorphic types, i.e. a heterogeneous list with a common base class that
 /// holds the next/prev pointers.  The only state of the list itself is a single
 /// pointer to the head of the list.
 ///
@@ -615,7 +615,6 @@ public:
 
   template<class Pr3> void sort(Pr3 pred);
   void sort() { sort(op_less); }
-  void reverse();
 };
 
 
@@ -645,7 +644,7 @@ struct ilist : public iplist<NodeTy> {
 
   // Main implementation here - Insert for a node passed by value...
   iterator insert(iterator where, const NodeTy &val) {
-    return insert(where, createNode(val));
+    return insert(where, this->createNode(val));
   }
 
 

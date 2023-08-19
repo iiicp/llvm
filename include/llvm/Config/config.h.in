@@ -1,15 +1,28 @@
 /* include/llvm/Config/config.h.in.  Generated from autoconf/configure.ac by autoheader.  */
 
-/* Define if dlopen(0) will open the symbols of the program */
-#undef CAN_DLOPEN_SELF
+#ifndef CONFIG_H
+#define CONFIG_H
 
-/* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
-   systems. This function is required for `alloca.c' support on those systems.
-   */
-#undef CRAY_STACKSEG_END
+/* Bug report URL. */
+#undef BUG_REPORT_URL
 
-/* Define to 1 if using `alloca.c'. */
-#undef C_ALLOCA
+/* Relative directory for resource files */
+#undef CLANG_RESOURCE_DIR
+
+/* 32 bit multilib directory. */
+#undef CXX_INCLUDE_32BIT_DIR
+
+/* 64 bit multilib directory. */
+#undef CXX_INCLUDE_64BIT_DIR
+
+/* Arch the libstdc++ headers. */
+#undef CXX_INCLUDE_ARCH
+
+/* Directory with the libstdc++ headers. */
+#undef CXX_INCLUDE_ROOT
+
+/* Directories clang will search for headers */
+#undef C_INCLUDE_DIRS
 
 /* Define if CBE is enabled for printf %a output */
 #undef ENABLE_CBE_PRINTF_A
@@ -20,12 +33,8 @@
 /* Define if threads enabled */
 #undef ENABLE_THREADS
 
-/* Define to 1 if you have `alloca', as a function or macro. */
-#undef HAVE_ALLOCA
-
-/* Define to 1 if you have <alloca.h> and it should be used (not on Ultrix).
-   */
-#undef HAVE_ALLOCA_H
+/* Define if timestamp information (e.g., __DATE___) is allowed */
+#undef ENABLE_TIMESTAMPS
 
 /* Define to 1 if you have the `argz_append' function. */
 #undef HAVE_ARGZ_APPEND
@@ -54,9 +63,6 @@
 /* Define to 1 if you have the `bcopy' function. */
 #undef HAVE_BCOPY
 
-/* Does not have bi-directional iterator */
-#undef HAVE_BI_ITERATOR
-
 /* Define to 1 if you have the `ceilf' function. */
 #undef HAVE_CEILF
 
@@ -66,8 +72,18 @@
 /* Define to 1 if you have the `closedir' function. */
 #undef HAVE_CLOSEDIR
 
+/* Define to 1 if you have the <CrashReporterClient.h> header file. */
+#undef HAVE_CRASHREPORTERCLIENT_H
+
+/* Define if __crashreporter_info__ exists. */
+#undef HAVE_CRASHREPORTER_INFO
+
 /* Define to 1 if you have the <ctype.h> header file. */
 #undef HAVE_CTYPE_H
+
+/* Define to 1 if you have the declaration of `strerror_s', and to 0 if you
+   don't. */
+#undef HAVE_DECL_STRERROR_S
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
@@ -115,6 +131,9 @@
 /* Define if the neat program is available */
 #undef HAVE_FDP
 
+/* Define to 1 if you have the <fenv.h> header file. */
+#undef HAVE_FENV_H
+
 /* Define if libffi is available on this platform. */
 #undef HAVE_FFI_CALL
 
@@ -132,9 +151,6 @@
 
 /* Define to 1 if you have the `fmodf' function. */
 #undef HAVE_FMODF
-
-/* Does not have forward iterator */
-#undef HAVE_FWD_ITERATOR
 
 /* Define to 1 if you have the `getcwd' function. */
 #undef HAVE_GETCWD
@@ -261,9 +277,6 @@
 /* Define if mmap() can map files into memory */
 #undef HAVE_MMAP_FILE
 
-/* define if the compiler implements namespaces */
-#undef HAVE_NAMESPACES
-
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
 
@@ -275,6 +288,9 @@
 
 /* Define to 1 if you have the `opendir' function. */
 #undef HAVE_OPENDIR
+
+/* Define to 1 if you have the `posix_spawn' function. */
+#undef HAVE_POSIX_SPAWN
 
 /* Define to 1 if you have the `powf' function. */
 #undef HAVE_POWF
@@ -321,6 +337,9 @@
 /* Define to 1 if you have the `sbrk' function. */
 #undef HAVE_SBRK
 
+/* Define to 1 if you have the `setenv' function. */
+#undef HAVE_SETENV
+
 /* Define to 1 if you have the `setjmp' function. */
 #undef HAVE_SETJMP
 
@@ -357,9 +376,6 @@
 /* Set to 1 if the std::isnan function is found in <cmath> */
 #undef HAVE_STD_ISNAN_IN_CMATH
 
-/* Does not have std namespace iterator */
-#undef HAVE_STD_ITERATOR
-
 /* Define to 1 if you have the `strchr' function. */
 #undef HAVE_STRCHR
 
@@ -374,9 +390,6 @@
 
 /* Define to 1 if you have the `strerror_r' function. */
 #undef HAVE_STRERROR_R
-
-/* Define to 1 if you have the `strerror_s' function. */
-#undef HAVE_STRERROR_S
 
 /* Define to 1 if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
@@ -431,6 +444,9 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
+/* Define to 1 if you have the <sys/uio.h> header file. */
+#undef HAVE_SYS_UIO_H
+
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #undef HAVE_SYS_WAIT_H
 
@@ -452,17 +468,74 @@
 /* Define to 1 if the system has the type `u_int64_t'. */
 #undef HAVE_U_INT64_T
 
+/* Define to 1 if you have the <valgrind/valgrind.h> header file. */
+#undef HAVE_VALGRIND_VALGRIND_H
+
 /* Define to 1 if you have the <windows.h> header file. */
 #undef HAVE_WINDOWS_H
+
+/* Define to 1 if you have the `writev' function. */
+#undef HAVE_WRITEV
+
+/* Define if the xdot.py program is available */
+#undef HAVE_XDOT_PY
+
+/* Have host's _alloca */
+#undef HAVE__ALLOCA
+
+/* Have host's __alloca */
+#undef HAVE___ALLOCA
+
+/* Have host's __ashldi3 */
+#undef HAVE___ASHLDI3
+
+/* Have host's __ashrdi3 */
+#undef HAVE___ASHRDI3
+
+/* Have host's __chkstk */
+#undef HAVE___CHKSTK
+
+/* Have host's __cmpdi2 */
+#undef HAVE___CMPDI2
+
+/* Have host's __divdi3 */
+#undef HAVE___DIVDI3
 
 /* Define to 1 if you have the `__dso_handle' function. */
 #undef HAVE___DSO_HANDLE
 
+/* Have host's __fixdfdi */
+#undef HAVE___FIXDFDI
+
+/* Have host's __fixsfdi */
+#undef HAVE___FIXSFDI
+
+/* Have host's __floatdidf */
+#undef HAVE___FLOATDIDF
+
+/* Have host's __lshrdi3 */
+#undef HAVE___LSHRDI3
+
+/* Have host's __main */
+#undef HAVE___MAIN
+
+/* Have host's __moddi3 */
+#undef HAVE___MODDI3
+
+/* Have host's __udivdi3 */
+#undef HAVE___UDIVDI3
+
+/* Have host's __umoddi3 */
+#undef HAVE___UMODDI3
+
+/* Have host's ___chkstk */
+#undef HAVE____CHKSTK
+
+/* Linker version detected at compile time. */
+#undef HOST_LINK_VERSION
+
 /* Installation directory for binary executables */
 #undef LLVM_BINDIR
-
-/* Define to 1 for ilist sentinel compaction */
-#undef LLVM_COMPACT_SENTINELS
 
 /* Time at which LLVM was configured */
 #undef LLVM_CONFIGTIME
@@ -475,6 +548,9 @@
 
 /* Installation directory for config files */
 #undef LLVM_ETCDIR
+
+/* Has gcc/MSVC atomic intrinsics */
+#undef LLVM_HAS_ATOMICS
 
 /* Host triple we were built on */
 #undef LLVM_HOSTTRIPLE
@@ -491,11 +567,23 @@
 /* Installation directory for man pages */
 #undef LLVM_MANDIR
 
-/* Build multithreading support into LLVM */
-#undef LLVM_MULTITHREADED
-
 /* LLVM architecture name for the native architecture, if available */
 #undef LLVM_NATIVE_ARCH
+
+/* LLVM name for the native AsmParser init function, if available */
+#undef LLVM_NATIVE_ASMPARSER
+
+/* LLVM name for the native AsmPrinter init function, if available */
+#undef LLVM_NATIVE_ASMPRINTER
+
+/* LLVM name for the native Target init function, if available */
+#undef LLVM_NATIVE_TARGET
+
+/* LLVM name for the native TargetInfo init function, if available */
+#undef LLVM_NATIVE_TARGETINFO
+
+/* LLVM name for the native target MC init function, if available */
+#undef LLVM_NATIVE_TARGETMC
 
 /* Define if this is Unixish platform */
 #undef LLVM_ON_UNIX
@@ -526,6 +614,9 @@
 
 /* Define to path to twopi program if found or 'echo twopi' otherwise */
 #undef LLVM_PATH_TWOPI
+
+/* Define to path to xdot.py program if found or 'echo xdot.py' otherwise */
+#undef LLVM_PATH_XDOT_PY
 
 /* Installation prefix directory */
 #undef LLVM_PREFIX
@@ -572,14 +663,6 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
 
-/* If using the C implementation of alloca, define if you know the
-   direction of stack growth for your system; otherwise it will be
-   automatically deduced at runtime.
-	STACK_DIRECTION > 0 => grows toward higher addresses
-	STACK_DIRECTION < 0 => grows toward lower addresses
-	STACK_DIRECTION = 0 => direction of growth unknown */
-#undef STACK_DIRECTION
-
 /* Define to 1 if the `S_IS*' macros in <sys/stat.h> do not work properly. */
 #undef STAT_MACROS_BROKEN
 
@@ -598,6 +681,9 @@
 /* Define if use udis86 library */
 #undef USE_UDIS86
 
+/* Type of 1st arg on ELM Callback */
+#undef WIN32_ELMCB_PCSTR
+
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
 
@@ -609,3 +695,5 @@
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
+
+#endif

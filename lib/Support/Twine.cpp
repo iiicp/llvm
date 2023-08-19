@@ -9,13 +9,18 @@
 
 #include "llvm/ADT/Twine.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 std::string Twine::str() const {
+  // If we're storing only a std::string, just return it.
+  if (LHSKind == StdStringKind && RHSKind == EmptyKind)
+    return *LHS.stdString;
+
+  // Otherwise, flatten and copy the contents first.
   SmallString<256> Vec;
-  toVector(Vec);
-  return std::string(Vec.begin(), Vec.end());
+  return toStringRef(Vec).str();
 }
 
 void Twine::toVector(SmallVectorImpl<char> &Out) const {
@@ -23,48 +28,78 @@ void Twine::toVector(SmallVectorImpl<char> &Out) const {
   print(OS);
 }
 
-void Twine::printOneChild(raw_ostream &OS, const void *Ptr, 
+StringRef Twine::toStringRef(SmallVectorImpl<char> &Out) const {
+  if (isSingleStringRef())
+    return getSingleStringRef();
+  toVector(Out);
+  return StringRef(Out.data(), Out.size());
+}
+
+StringRef Twine::toNullTerminatedStringRef(SmallVectorImpl<char> &Out) const {
+  if (isUnary()) {
+    switch (getLHSKind()) {
+    case CStringKind:
+      // Already null terminated, yay!
+      return StringRef(LHS.cString);
+    case StdStringKind: {
+      const std::string *str = LHS.stdString;
+      return StringRef(str->c_str(), str->size());
+    }
+    default:
+      break;
+    }
+  }
+  toVector(Out);
+  Out.push_back(0);
+  Out.pop_back();
+  return StringRef(Out.data(), Out.size());
+}
+
+void Twine::printOneChild(raw_ostream &OS, Child Ptr,
                           NodeKind Kind) const {
   switch (Kind) {
   case Twine::NullKind: break;
   case Twine::EmptyKind: break;
   case Twine::TwineKind:
-    static_cast<const Twine*>(Ptr)->print(OS); 
+    Ptr.twine->print(OS);
     break;
-  case Twine::CStringKind: 
-    OS << static_cast<const char*>(Ptr); 
+  case Twine::CStringKind:
+    OS << Ptr.cString;
     break;
   case Twine::StdStringKind:
-    OS << *static_cast<const std::string*>(Ptr); 
+    OS << *Ptr.stdString;
     break;
   case Twine::StringRefKind:
-    OS << *static_cast<const StringRef*>(Ptr); 
+    OS << *Ptr.stringRef;
+    break;
+  case Twine::CharKind:
+    OS << Ptr.character;
     break;
   case Twine::DecUIKind:
-    OS << *static_cast<const unsigned int*>(Ptr);
+    OS << Ptr.decUI;
     break;
   case Twine::DecIKind:
-    OS << *static_cast<const int*>(Ptr);
+    OS << Ptr.decI;
     break;
   case Twine::DecULKind:
-    OS << *static_cast<const unsigned long*>(Ptr);
+    OS << *Ptr.decUL;
     break;
   case Twine::DecLKind:
-    OS << *static_cast<const long*>(Ptr);
+    OS << *Ptr.decL;
     break;
   case Twine::DecULLKind:
-    OS << *static_cast<const unsigned long long*>(Ptr);
+    OS << *Ptr.decULL;
     break;
   case Twine::DecLLKind:
-    OS << *static_cast<const long long*>(Ptr);
+    OS << *Ptr.decLL;
     break;
   case Twine::UHexKind:
-    OS.write_hex(*static_cast<const uint64_t*>(Ptr));
+    OS.write_hex(*Ptr.uHex);
     break;
   }
 }
 
-void Twine::printOneChildRepr(raw_ostream &OS, const void *Ptr, 
+void Twine::printOneChildRepr(raw_ostream &OS, Child Ptr,
                               NodeKind Kind) const {
   switch (Kind) {
   case Twine::NullKind:
@@ -73,40 +108,43 @@ void Twine::printOneChildRepr(raw_ostream &OS, const void *Ptr,
     OS << "empty"; break;
   case Twine::TwineKind:
     OS << "rope:";
-    static_cast<const Twine*>(Ptr)->printRepr(OS);
+    Ptr.twine->printRepr(OS);
     break;
   case Twine::CStringKind:
     OS << "cstring:\""
-       << static_cast<const char*>(Ptr) << "\"";
+       << Ptr.cString << "\"";
     break;
   case Twine::StdStringKind:
     OS << "std::string:\""
-       << static_cast<const std::string*>(Ptr) << "\"";
+       << Ptr.stdString << "\"";
     break;
   case Twine::StringRefKind:
     OS << "stringref:\""
-       << static_cast<const StringRef*>(Ptr) << "\"";
+       << Ptr.stringRef << "\"";
+    break;
+  case Twine::CharKind:
+    OS << "char:\"" << Ptr.character << "\"";
     break;
   case Twine::DecUIKind:
-    OS << "decUI:\"" << *static_cast<const unsigned int*>(Ptr) << "\"";
+    OS << "decUI:\"" << Ptr.decUI << "\"";
     break;
   case Twine::DecIKind:
-    OS << "decI:\"" << *static_cast<const int*>(Ptr) << "\"";
+    OS << "decI:\"" << Ptr.decI << "\"";
     break;
   case Twine::DecULKind:
-    OS << "decUL:\"" << *static_cast<const unsigned long*>(Ptr) << "\"";
+    OS << "decUL:\"" << *Ptr.decUL << "\"";
     break;
   case Twine::DecLKind:
-    OS << "decL:\"" << *static_cast<const long*>(Ptr) << "\"";
+    OS << "decL:\"" << *Ptr.decL << "\"";
     break;
   case Twine::DecULLKind:
-    OS << "decULL:\"" << *static_cast<const unsigned long long*>(Ptr) << "\"";
+    OS << "decULL:\"" << *Ptr.decULL << "\"";
     break;
   case Twine::DecLLKind:
-    OS << "decLL:\"" << *static_cast<const long long*>(Ptr) << "\"";
+    OS << "decLL:\"" << *Ptr.decLL << "\"";
     break;
   case Twine::UHexKind:
-    OS << "uhex:\"" << static_cast<const uint64_t*>(Ptr) << "\"";
+    OS << "uhex:\"" << Ptr.uHex << "\"";
     break;
   }
 }
@@ -125,9 +163,9 @@ void Twine::printRepr(raw_ostream &OS) const {
 }
 
 void Twine::dump() const {
-  print(llvm::errs());
+  print(llvm::dbgs());
 }
 
 void Twine::dumpRepr() const {
-  printRepr(llvm::errs());
+  printRepr(llvm::dbgs());
 }

@@ -12,11 +12,44 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/GraphWriter.h"
-#include "llvm/Support/Streams.h"
-#include "llvm/System/Path.h"
-#include "llvm/System/Program.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/Program.h"
 #include "llvm/Config/config.h"
 using namespace llvm;
+
+std::string llvm::DOT::EscapeString(const std::string &Label) {
+  std::string Str(Label);
+  for (unsigned i = 0; i != Str.length(); ++i)
+  switch (Str[i]) {
+    case '\n':
+      Str.insert(Str.begin()+i, '\\');  // Escape character...
+      ++i;
+      Str[i] = 'n';
+      break;
+    case '\t':
+      Str.insert(Str.begin()+i, ' ');  // Convert to two spaces
+      ++i;
+      Str[i] = ' ';
+      break;
+    case '\\':
+      if (i+1 != Str.length())
+        switch (Str[i+1]) {
+          case 'l': continue; // don't disturb \l
+          case '|': case '{': case '}':
+            Str.erase(Str.begin()+i); continue;
+          default: break;
+        }
+    case '{': case '}':
+    case '<': case '>':
+    case '|': case '"':
+      Str.insert(Str.begin()+i, '\\');  // Escape character...
+      ++i;  // don't infinite loop
+      break;
+  }
+  return Str;
+}
+
+
 
 void llvm::DisplayGraph(const sys::Path &Filename, bool wait,
                         GraphProgram::Name program) {
@@ -29,13 +62,38 @@ void llvm::DisplayGraph(const sys::Path &Filename, bool wait,
   args.push_back(Filename.c_str());
   args.push_back(0);
   
-  cerr << "Running 'Graphviz' program... ";
+  errs() << "Running 'Graphviz' program... ";
   if (sys::Program::ExecuteAndWait(Graphviz, &args[0],0,0,0,0,&ErrMsg)) {
-     cerr << "Error viewing graph " << Filename << ": " << ErrMsg << "\n";
+    errs() << "Error: " << ErrMsg << "\n";
+    return;
   }
-  else {
-     Filename.eraseFromDisk();
+  Filename.eraseFromDisk();
+  errs() << " done. \n";
+
+#elif HAVE_XDOT_PY
+  std::vector<const char*> args;
+  args.push_back(LLVM_PATH_XDOT_PY);
+  args.push_back(Filename.c_str());
+
+  switch (program) {
+  case GraphProgram::DOT:   args.push_back("-f"); args.push_back("dot"); break;
+  case GraphProgram::FDP:   args.push_back("-f"); args.push_back("fdp"); break;
+  case GraphProgram::NEATO: args.push_back("-f"); args.push_back("neato");break;
+  case GraphProgram::TWOPI: args.push_back("-f"); args.push_back("twopi");break;
+  case GraphProgram::CIRCO: args.push_back("-f"); args.push_back("circo");break;
+  default: errs() << "Unknown graph layout name; using default.\n";
   }
+  
+  args.push_back(0);
+
+  errs() << "Running 'xdot.py' program... ";
+  if (sys::Program::ExecuteAndWait(sys::Path(LLVM_PATH_XDOT_PY),
+                                   &args[0],0,0,0,0,&ErrMsg)) {
+    errs() << "Error: " << ErrMsg << "\n";
+    return;
+  }
+  Filename.eraseFromDisk();
+  errs() << " done. \n";
 
 #elif (HAVE_GV && (HAVE_DOT || HAVE_FDP || HAVE_NEATO || \
                    HAVE_TWOPI || HAVE_CIRCO))
@@ -63,29 +121,24 @@ void llvm::DisplayGraph(const sys::Path &Filename, bool wait,
 
   // Find which program the user wants
 #if HAVE_DOT
-  if (program == GraphProgram::DOT) {
+  if (program == GraphProgram::DOT)
     prog = sys::Path(LLVM_PATH_DOT);
-  }
 #endif
 #if (HAVE_FDP)
-  if (program == GraphProgram::FDP) {
+  if (program == GraphProgram::FDP)
     prog = sys::Path(LLVM_PATH_FDP);
-  }
 #endif
 #if (HAVE_NEATO)
-  if (program == GraphProgram::NEATO) {
+  if (program == GraphProgram::NEATO)
     prog = sys::Path(LLVM_PATH_NEATO);
-    }
 #endif
 #if (HAVE_TWOPI)
-  if (program == GraphProgram::TWOPI) {
+  if (program == GraphProgram::TWOPI)
     prog = sys::Path(LLVM_PATH_TWOPI);
-  }
 #endif
 #if (HAVE_CIRCO)
-  if (program == GraphProgram::CIRCO) {
+  if (program == GraphProgram::CIRCO)
     prog = sys::Path(LLVM_PATH_CIRCO);
-  }
 #endif
 
   std::vector<const char*> args;
@@ -98,32 +151,32 @@ void llvm::DisplayGraph(const sys::Path &Filename, bool wait,
   args.push_back(PSFilename.c_str());
   args.push_back(0);
   
-  cerr << "Running '" << prog << "' program... ";
+  errs() << "Running '" << prog.str() << "' program... ";
 
-  if (sys::Program::ExecuteAndWait(prog, &args[0],0,0,0,0,&ErrMsg)) {
-     cerr << "Error viewing graph " << Filename << ": '" << ErrMsg << "\n";
-  } else {
-    cerr << " done. \n";
+  if (sys::Program::ExecuteAndWait(prog, &args[0], 0, 0, 0, 0, &ErrMsg)) {
+    errs() << "Error: " << ErrMsg << "\n";
+    return;
+  }
+  errs() << " done. \n";
 
-    sys::Path gv(LLVM_PATH_GV);
-    args.clear();
-    args.push_back(gv.c_str());
-    args.push_back(PSFilename.c_str());
-    args.push_back("-spartan");
-    args.push_back(0);
-    
-    ErrMsg.clear();
-    if (wait) {
-       if (sys::Program::ExecuteAndWait(gv, &args[0],0,0,0,0,&ErrMsg)) {
-          cerr << "Error viewing graph: " << ErrMsg << "\n";
-       }
-       Filename.eraseFromDisk();
-       PSFilename.eraseFromDisk();
-    }
-    else {
-       sys::Program::ExecuteNoWait(gv, &args[0],0,0,0,&ErrMsg);
-       cerr << "Remember to erase graph files: " << Filename << " " << PSFilename << "\n";
-    }
+  sys::Path gv(LLVM_PATH_GV);
+  args.clear();
+  args.push_back(gv.c_str());
+  args.push_back(PSFilename.c_str());
+  args.push_back("--spartan");
+  args.push_back(0);
+  
+  ErrMsg.clear();
+  if (wait) {
+     if (sys::Program::ExecuteAndWait(gv, &args[0],0,0,0,0,&ErrMsg))
+        errs() << "Error: " << ErrMsg << "\n";
+     Filename.eraseFromDisk();
+     PSFilename.eraseFromDisk();
+  }
+  else {
+     sys::Program::ExecuteNoWait(gv, &args[0],0,0,0,&ErrMsg);
+     errs() << "Remember to erase graph files: " << Filename.str() << " "
+            << PSFilename.str() << "\n";
   }
 #elif HAVE_DOTTY
   sys::Path dotty(LLVM_PATH_DOTTY);
@@ -133,11 +186,12 @@ void llvm::DisplayGraph(const sys::Path &Filename, bool wait,
   args.push_back(Filename.c_str());
   args.push_back(0);
   
-  cerr << "Running 'dotty' program... ";
+  errs() << "Running 'dotty' program... ";
   if (sys::Program::ExecuteAndWait(dotty, &args[0],0,0,0,0,&ErrMsg)) {
-     cerr << "Error viewing graph " << Filename << ": " << ErrMsg << "\n";
+     errs() << "Error: " << ErrMsg << "\n";
   } else {
-#ifdef __MINGW32__ // Dotty spawns another app and doesn't wait until it returns
+// Dotty spawns another app and doesn't wait until it returns
+#if defined (__MINGW32__) || defined (_WINDOWS)
     return;
 #endif
     Filename.eraseFromDisk();

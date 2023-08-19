@@ -1,4 +1,4 @@
-//===- llvm/Support/ErrorHandling.h - Callbacks for errors ------*- C++ -*-===//
+//===- llvm/Support/ErrorHandling.h - Fatal error handling ------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines an API used to indicate error conditions.
-// Callbacks can be registered for these errors through this API.
+// This file defines an API used to indicate fatal error conditions.  Non-fatal
+// errors (most of them) should be handled through LLVMContext.
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,16 +16,17 @@
 #define LLVM_SUPPORT_ERRORHANDLING_H
 
 #include "llvm/Support/Compiler.h"
+#include "llvm/ADT/StringRef.h"
 #include <string>
 
 namespace llvm {
   class Twine;
 
   /// An error handler callback.
-  typedef void (*llvm_error_handler_t)(void *user_data,
-                                       const std::string& reason);
+  typedef void (*fatal_error_handler_t)(void *user_data,
+                                        const std::string& reason);
 
-  /// llvm_instal_error_handler - Installs a new error handler to be used
+  /// install_fatal_error_handler - Installs a new error handler to be used
   /// whenever a serious (non-recoverable) error is encountered by LLVM.
   ///
   /// If you are using llvm_start_multithreaded, you should register the handler
@@ -44,13 +45,25 @@ namespace llvm {
   ///
   /// \param user_data - An argument which will be passed to the install error
   /// handler.
-  void llvm_install_error_handler(llvm_error_handler_t handler,
-                                  void *user_data = 0);
+  void install_fatal_error_handler(fatal_error_handler_t handler,
+                                   void *user_data = 0);
 
   /// Restores default error handling behaviour.
   /// This must not be called between llvm_start_multithreaded() and
   /// llvm_stop_multithreaded().
-  void llvm_remove_error_handler();
+  void remove_fatal_error_handler();
+
+  /// ScopedFatalErrorHandler - This is a simple helper class which just
+  /// calls install_fatal_error_handler in its constructor and
+  /// remove_fatal_error_handler in its destructor.
+  struct ScopedFatalErrorHandler {
+    explicit ScopedFatalErrorHandler(fatal_error_handler_t handler,
+                                     void *user_data = 0) {
+      install_fatal_error_handler(handler, user_data);
+    }
+
+    ~ScopedFatalErrorHandler() { remove_fatal_error_handler(); }
+  };
 
   /// Reports a serious error, calling any installed error handler. These
   /// functions are intended to be used for error conditions which are outside
@@ -60,28 +73,34 @@ namespace llvm {
   /// standard error, followed by a newline.
   /// After the error handler is called this function will call exit(1), it 
   /// does not return.
-  void llvm_report_error(const char *reason) NORETURN;
-  void llvm_report_error(const std::string &reason) NORETURN;
-  void llvm_report_error(const Twine &reason) NORETURN;
+  LLVM_ATTRIBUTE_NORETURN void report_fatal_error(const char *reason);
+  LLVM_ATTRIBUTE_NORETURN void report_fatal_error(const std::string &reason);
+  LLVM_ATTRIBUTE_NORETURN void report_fatal_error(StringRef reason);
+  LLVM_ATTRIBUTE_NORETURN void report_fatal_error(const Twine &reason);
 
   /// This function calls abort(), and prints the optional message to stderr.
   /// Use the llvm_unreachable macro (that adds location info), instead of
   /// calling this function directly.
-  void llvm_unreachable_internal(const char *msg=0, const char *file=0,
-                                 unsigned line=0) NORETURN;
+  LLVM_ATTRIBUTE_NORETURN void llvm_unreachable_internal(const char *msg=0,
+                                                         const char *file=0,
+                                                         unsigned line=0);
 }
 
-/// Prints the message and location info to stderr in !NDEBUG builds.
-/// This is intended to be used for "impossible" situations that imply
-/// a bug in the compiler.
+/// Marks that the current location is not supposed to be reachable.
+/// In !NDEBUG builds, prints the message and location info to stderr.
+/// In NDEBUG builds, becomes an optimizer hint that the current location
+/// is not supposed to be reachable.  On compilers that don't support
+/// such hints, prints a reduced message instead.
 ///
-/// In NDEBUG mode it only prints "UNREACHABLE executed".
-/// Use this instead of assert(0), so that the compiler knows this path
-/// is not reachable even for NDEBUG builds.
+/// Use this instead of assert(0).  It conveys intent more clearly and
+/// allows compilers to omit some unnecessary code.
 #ifndef NDEBUG
-#define llvm_unreachable(msg) llvm_unreachable_internal(msg, __FILE__, __LINE__)
+#define llvm_unreachable(msg) \
+  ::llvm::llvm_unreachable_internal(msg, __FILE__, __LINE__)
+#elif defined(LLVM_BUILTIN_UNREACHABLE)
+#define llvm_unreachable(msg) LLVM_BUILTIN_UNREACHABLE
 #else
-#define llvm_unreachable(msg) llvm_unreachable_internal()
+#define llvm_unreachable(msg) ::llvm::llvm_unreachable_internal()
 #endif
 
 #endif

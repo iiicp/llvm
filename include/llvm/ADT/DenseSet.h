@@ -28,10 +28,13 @@ class DenseSet {
   MapTy TheMap;
 public:
   DenseSet(const DenseSet &Other) : TheMap(Other.TheMap) {}
-  explicit DenseSet(unsigned NumInitBuckets = 64) : TheMap(NumInitBuckets) {}
+  explicit DenseSet(unsigned NumInitBuckets = 0) : TheMap(NumInitBuckets) {}
 
   bool empty() const { return TheMap.empty(); }
   unsigned size() const { return TheMap.size(); }
+
+  /// Grow the denseset so that it has at least Size buckets. Does not shrink
+  void resize(size_t Size) { TheMap.resize(Size); }
 
   void clear() {
     TheMap.clear();
@@ -41,8 +44,12 @@ public:
     return TheMap.count(V);
   }
 
-  void erase(const ValueT &V) {
-    TheMap.erase(V);
+  bool erase(const ValueT &V) {
+    return TheMap.erase(V);
+  }
+
+  void swap(DenseSet& RHS) {
+    TheMap.swap(RHS.TheMap);
   }
 
   DenseSet &operator=(const DenseSet &RHS) {
@@ -54,26 +61,40 @@ public:
 
   class Iterator {
     typename MapTy::iterator I;
+    friend class DenseSet;
   public:
+    typedef typename MapTy::iterator::difference_type difference_type;
+    typedef ValueT value_type;
+    typedef value_type *pointer;
+    typedef value_type &reference;
+    typedef std::forward_iterator_tag iterator_category;
+
     Iterator(const typename MapTy::iterator &i) : I(i) {}
 
     ValueT& operator*() { return I->first; }
     ValueT* operator->() { return &I->first; }
 
-    Iterator& operator++() { ++I; return *this; };
+    Iterator& operator++() { ++I; return *this; }
     bool operator==(const Iterator& X) const { return I == X.I; }
     bool operator!=(const Iterator& X) const { return I != X.I; }
   };
 
   class ConstIterator {
     typename MapTy::const_iterator I;
+    friend class DenseSet;
   public:
+    typedef typename MapTy::const_iterator::difference_type difference_type;
+    typedef ValueT value_type;
+    typedef value_type *pointer;
+    typedef value_type &reference;
+    typedef std::forward_iterator_tag iterator_category;
+
     ConstIterator(const typename MapTy::const_iterator &i) : I(i) {}
 
     const ValueT& operator*() { return I->first; }
     const ValueT* operator->() { return &I->first; }
 
-    ConstIterator& operator++() { ++I; return *this; };
+    ConstIterator& operator++() { ++I; return *this; }
     bool operator==(const ConstIterator& X) const { return I == X.I; }
     bool operator!=(const ConstIterator& X) const { return I != X.I; }
   };
@@ -86,6 +107,10 @@ public:
 
   const_iterator begin() const { return ConstIterator(TheMap.begin()); }
   const_iterator end() const { return ConstIterator(TheMap.end()); }
+
+  iterator find(const ValueT &V) { return Iterator(TheMap.find(V)); }
+  void erase(Iterator I) { return TheMap.erase(I.I); }
+  void erase(ConstIterator CI) { return TheMap.erase(CI.I); }
 
   std::pair<iterator, bool> insert(const ValueT &V) {
     return TheMap.insert(std::make_pair(V, 0));
