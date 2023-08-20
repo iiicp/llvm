@@ -692,7 +692,7 @@ unsigned APInt::getBitsNeeded(StringRef str, uint8_t radix) {
   }
 
 // From http://www.burtleburtle.net, by Bob Jenkins.
-#define final(a,b,c) \
+#define final_func(a,b,c) \
   { \
     c ^= b; c -= rot(b,14); \
     a ^= c; a -= rot(c,11); \
@@ -730,7 +730,7 @@ static inline uint32_t hashword(const uint64_t *k64, size_t length)
   case 3 : c+=k[2];
   case 2 : b+=k[1];
   case 1 : a+=k[0];
-    final(a,b,c);
+    final_func(a,b,c);
     case 0:     /* case 0: nothing left to add */
       break;
     }
@@ -748,10 +748,10 @@ static inline uint32_t hashword8(const uint64_t k64)
   a = b = c = 0xdeadbeef + 4;
   b += k64 >> 32;
   a += k64 & 0xffffffff;
-  final(a,b,c);
+  final_func(a,b,c);
   return c;
 }
-#undef final
+#undef final_func
 #undef mix
 #undef rot
 

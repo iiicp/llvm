@@ -33,6 +33,8 @@ public:
   explicit APSInt(const APInt &I, bool isUnsigned = true)
    : APInt(I), IsUnsigned(isUnsigned) {}
 
+  APSInt(const APSInt &) = default;
+
   APSInt &operator=(const APSInt &RHS) {
     APInt::operator=(RHS);
     IsUnsigned = RHS.IsUnsigned;

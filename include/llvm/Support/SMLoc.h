@@ -21,10 +21,11 @@ namespace llvm {
 class SMLoc {
   const char *Ptr;
 public:
-  SMLoc() : Ptr(0) {}
-  SMLoc(const SMLoc &RHS) : Ptr(RHS.Ptr) {}
-
-  bool isValid() const { return Ptr != 0; }
+  SMLoc() : Ptr(nullptr) {}
+//  SMLoc(const SMLoc &RHS) : Ptr(RHS.Ptr) {}
+  SMLoc(const SMLoc &RHS) = default;
+  SMLoc &operator=(const SMLoc &RHS) = default;
+  bool isValid() const { return Ptr != nullptr; }
 
   bool operator==(const SMLoc &RHS) const { return RHS.Ptr == Ptr; }
   bool operator!=(const SMLoc &RHS) const { return RHS.Ptr != Ptr; }

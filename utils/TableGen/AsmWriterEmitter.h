@@ -15,7 +15,7 @@
 #ifndef ASMWRITER_EMITTER_H
 #define ASMWRITER_EMITTER_H
 
-#include "TableGenBackend.h"
+#include "llvm/TableGen/TableGenBackend.h"
 #include <map>
 #include <vector>
 #include <cassert>
@@ -35,6 +35,12 @@ namespace llvm {
     void run(raw_ostream &o);
 
 private:
+    void EmitPrintInstruction(raw_ostream &o);
+    void EmitGetRegisterName(raw_ostream &o);
+    void EmitGetInstructionName(raw_ostream &o);
+    void EmitRegIsInRegClass(raw_ostream &O);
+    void EmitPrintAliasInstruction(raw_ostream &O);
+    
     AsmWriterInst *getAsmWriterInstByID(unsigned ID) const {
       assert(ID < NumberedInstructions.size());
       std::map<const CodeGenInstruction*, AsmWriterInst*>::const_iterator I =

@@ -21,7 +21,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-//#include "llvm/InstrTypes.h"
+#include "llvm/InstrTypes.h"
 #include "llvm/Support/ConstantRange.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -52,7 +52,7 @@ ConstantRange ConstantRange::makeICmpRegion(unsigned Pred,
                                             const ConstantRange &CR) {
   if (CR.isEmptySet())
     return CR;
-#if 0
+#if 1
   uint32_t W = CR.getBitWidth();
   switch (Pred) {
     default: assert(0 && "Invalid ICmp predicate to makeICmpRegion()");

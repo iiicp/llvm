@@ -183,6 +183,9 @@ if( MINGW )
 endif()
 
 add_subdirectory(lib/Support)
+add_subdirectory(lib/TableGen)
+
+add_subdirectory(utils/TableGen)
 
 #set(LLVM_TABLEGEN "tblgen" CACHE
 #        STRING "Native TableGen executable. Saves building one when cross-compiling.")
