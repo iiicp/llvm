@@ -110,6 +110,7 @@ public:
 
   explicit inline SuccIterator(Term_ T) : Term(T), idx(0) {// begin iterator
   }
+  SuccIterator(const SuccIterator &) = default;
   inline SuccIterator(Term_ T, bool)                       // end iterator
     : Term(T) {
     if (Term)

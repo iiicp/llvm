@@ -177,6 +177,7 @@ public:
 
   value_use_iterator(const _Self &I) : U(I.U) {}
   value_use_iterator() {}
+  value_use_iterator& operator=(const value_use_iterator &) = default;
 
   bool operator==(const _Self &x) const {
     return U == x.U;

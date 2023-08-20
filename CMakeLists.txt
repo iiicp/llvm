@@ -187,57 +187,8 @@ add_subdirectory(lib/TableGen)
 
 add_subdirectory(utils/TableGen)
 
-#set(LLVM_TABLEGEN "tblgen" CACHE
-#        STRING "Native TableGen executable. Saves building one when cross-compiling.")
-## Effective tblgen executable to be used:
-#set(LLVM_TABLEGEN_EXE ${LLVM_TABLEGEN})
+add_subdirectory(include/llvm)
 
-#add_subdirectory(utils/TableGen)
-
-#add_subdirectory(include/llvm)
-#add_subdirectory(lib/VMCore)
-#add_subdirectory(lib/CodeGen)
-#add_subdirectory(lib/CodeGen/SelectionDAG)
-#add_subdirectory(lib/CodeGen/AsmPrinter)
-#add_subdirectory(lib/Bitcode/Reader)
-#add_subdirectory(lib/Bitcode/Writer)
-#add_subdirectory(lib/Transforms/Utils)
-#add_subdirectory(lib/Transforms/Instrumentation)
-#add_subdirectory(lib/Transforms/Scalar)
-#add_subdirectory(lib/Transforms/IPO)
-#add_subdirectory(lib/Transforms/Hello)
-
-#set(LLVM_ENUM_ASM_PRINTERS "")
-#set(LLVM_ENUM_ASM_PARSERS "")
-#foreach(t ${LLVM_TARGETS_TO_BUILD})
-#    message(STATUS "Targeting ${t}")
-#    add_subdirectory(lib/Target/${t})
-#    add_subdirectory(lib/Target/${t}/TargetInfo)
-#    if( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmPrinter/CMakeLists.txt )
-#        add_subdirectory(lib/Target/${t}/AsmPrinter)
-#        set(LLVM_ENUM_ASM_PRINTERS
-#                "${LLVM_ENUM_ASM_PRINTERS}LLVM_ASM_PRINTER(${t})\n")
-#    endif( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmPrinter/CMakeLists.txt )
-#    if( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmParser/CMakeLists.txt )
-#        add_subdirectory(lib/Target/${t}/AsmParser)
-#        set(LLVM_ENUM_ASM_PARSERS
-#                "${LLVM_ENUM_ASM_PARSERS}LLVM_ASM_PARSER(${t})\n")
-#    endif( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmParser/CMakeLists.txt )
-#    set(CURRENT_LLVM_TARGET)
-#endforeach(t)
-#
-## Produce llvm/Config/AsmPrinters.def
-#configure_file(
-#        ${LLVM_MAIN_INCLUDE_DIR}/llvm/Config/AsmPrinters.def.in
-#        ${LLVM_BINARY_DIR}/include/llvm/Config/AsmPrinters.def
-#)
-#
-## Produce llvm/Config/AsmParsers.def
-#configure_file(
-#        ${LLVM_MAIN_INCLUDE_DIR}/llvm/Config/AsmParsers.def.in
-#        ${LLVM_BINARY_DIR}/include/llvm/Config/AsmParsers.def
-#)
-
-#add_subdirectory(lib/Target)
+add_subdirectory(lib)
 
 add_subdirectory(cmake/modules)

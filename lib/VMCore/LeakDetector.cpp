@@ -58,7 +58,7 @@ void LeakDetector::checkForGarbageImpl(LLVMContext &Context,
   pImpl->LLVMObjects.setName("LLVM");
   
   // use non-short-circuit version so that both checks are performed
-  if (Objects->hasGarbage(Message) |
+  if (Objects->hasGarbage(Message) ||
       pImpl->LLVMObjects.hasGarbage(Message))
     errs() << "\nThis is probably because you removed an object, but didn't "
            << "delete it.  Please check your code for memory leaks.\n";

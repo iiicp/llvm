@@ -594,7 +594,7 @@ namespace llvm {
       return Operand == x.Operand;
     }
     bool operator!=(const SUnitIterator& x) const { return !operator==(x); }
-
+    SUnitIterator(const SUnitIterator&) = default;
     const SUnitIterator &operator=(const SUnitIterator &I) {
       assert(I.Node==Node && "Cannot assign iterators to two different nodes!");
       Operand = I.Operand;

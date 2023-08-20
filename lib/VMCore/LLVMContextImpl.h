@@ -45,6 +45,7 @@ struct DenseMapAPIntKeyInfo {
     Type* type;
     KeyTy(const APInt& V, Type* Ty) : val(V), type(Ty) {}
     KeyTy(const KeyTy& that) : val(that.val), type(that.type) {}
+    KeyTy &operator=(const KeyTy &) = default;
     bool operator==(const KeyTy& that) const {
       return type == that.type && this->val == that.val;
     }
@@ -68,6 +69,7 @@ struct DenseMapAPFloatKeyInfo {
     APFloat val;
     KeyTy(const APFloat& V) : val(V){}
     KeyTy(const KeyTy& that) : val(that.val) {}
+    KeyTy &operator=(const KeyTy &) = default;
     bool operator==(const KeyTy& that) const {
       return this->val.bitwiseIsEqual(that.val);
     }
