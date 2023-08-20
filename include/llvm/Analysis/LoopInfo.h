@@ -294,7 +294,7 @@ public:
 
     // Loop over the predecessors of the header node...
     BlockT *Header = getHeader();
-    typedef GraphTraits<BlockT*> BlockTraits;
+//    typedef GraphTraits<BlockT*> BlockTraits;
     typedef GraphTraits<Inverse<BlockT*> > InvBlockTraits;
     for (typename InvBlockTraits::ChildIteratorType PI =
          InvBlockTraits::child_begin(Header),
@@ -828,8 +828,12 @@ public:
         typedef GraphTraits<Inverse<BlockT*> > InvBlockTraits;
 
         // Add all of the predecessors of X to the end of the work stack...
-        TodoStack.insert(TodoStack.end(), InvBlockTraits::child_begin(X),
-                         InvBlockTraits::child_end(X));
+//        TodoStack.insert(TodoStack.end(), InvBlockTraits::child_begin(X),
+//                         InvBlockTraits::child_end(X));
+        for (typename InvBlockTraits::ChildIteratorType I =
+                                                            InvBlockTraits::child_begin(X),
+                                                        E = InvBlockTraits::child_end(X); I != E; ++I)
+          TodoStack.push_back(*I);
       }
     }
 

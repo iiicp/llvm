@@ -484,7 +484,7 @@ void WinCOFFObjectWriter::MakeSectionReal(COFFSection &S, size_t Number) {
     if (StringTableEntry > 999999)
       report_fatal_error("COFF string table is greater than 999999 bytes.");
 
-    std::sprintf(S.Header.Name, "/%d", unsigned(StringTableEntry));
+    std::snprintf(S.Header.Name, sizeof(S.Header.Name),"/%d", unsigned(StringTableEntry));
   } else
     std::memcpy(S.Header.Name, S.Name.c_str(), S.Name.size());
 

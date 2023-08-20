@@ -93,11 +93,13 @@ inline const_pred_iterator pred_end(const BasicBlock *BB) {
 //===----------------------------------------------------------------------===//
 
 template <class Term_, class BB_>           // Successor Iterator
-class SuccIterator : public std::iterator<std::bidirectional_iterator_tag,
-                                          BB_, ptrdiff_t> {
+class SuccIterator : public std::iterator<std::random_access_iterator_tag, BB_,
+                                          int, BB_ *, BB_ *> {
   const Term_ Term;
   unsigned idx;
-  typedef std::iterator<std::bidirectional_iterator_tag, BB_, ptrdiff_t> super;
+//  typedef std::iterator<std::bidirectional_iterator_tag, BB_, ptrdiff_t> super;
+  typedef std::iterator<std::random_access_iterator_tag, BB_, int, BB_ *, BB_ *>
+      super;
   typedef SuccIterator<Term_, BB_> Self;
 
   inline bool index_is_valid(int idx) {

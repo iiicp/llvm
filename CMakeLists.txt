@@ -191,4 +191,44 @@ add_subdirectory(include/llvm)
 
 add_subdirectory(lib)
 
+add_subdirectory(utils/FileCheck)
+add_subdirectory(utils/FileUpdate)
+add_subdirectory(utils/count)
+add_subdirectory(utils/not)
+add_subdirectory(utils/llvm-lit)
+
+option(LLVM_BUILD_TOOLS
+        "Build the LLVM tools. If OFF, just generate build targets." ON)
+option(LLVM_INCLUDE_TOOLS "Generate build targets for the LLVM tools." ON)
+if( LLVM_INCLUDE_TOOLS )
+    add_subdirectory(tools)
+endif()
+
+option(LLVM_BUILD_RUNTIME
+        "Build the LLVM runtime libraries. If OFF, just generate build targets." ON)
+option(LLVM_INCLUDE_RUNTIME "Generate build targets for the LLVM runtimes" ON)
+if( LLVM_INCLUDE_RUNTIME )
+    add_subdirectory(runtime)
+endif()
+
+option(LLVM_BUILD_EXAMPLES
+        "Build the LLVM example programs. If OFF, just generate build targets." OFF)
+option(LLVM_INCLUDE_EXAMPLES "Generate build targets for the LLVM examples" ON)
+if( LLVM_INCLUDE_EXAMPLES )
+    add_subdirectory(examples)
+endif()
+
+option(LLVM_BUILD_TESTS
+        "Build LLVM unit tests. If OFF, just generate build targets." OFF)
+if( LLVM_INCLUDE_TESTS )
+    add_subdirectory(test)
+    add_subdirectory(utils/unittest)
+    add_subdirectory(unittests)
+    if (MSVC)
+        # This utility is used to prevent chrashing tests from calling Dr. Watson on
+        # Windows.
+        add_subdirectory(utils/KillTheDoctor)
+    endif()
+endif()
+
 add_subdirectory(cmake/modules)
