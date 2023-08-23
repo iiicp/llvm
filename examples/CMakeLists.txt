@@ -11,3 +11,8 @@ endif()
 if( HAVE_PTHREAD_H )
   add_subdirectory(ParallelJIT)
 endif( HAVE_PTHREAD_H )
+
+if( EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/toy/CMakeLists.txt )
+    add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/toy )
+endif()
+
