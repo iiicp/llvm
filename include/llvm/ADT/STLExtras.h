@@ -28,7 +28,7 @@ namespace llvm {
 //===----------------------------------------------------------------------===//
 //     Extra additions to <functional>
 //===----------------------------------------------------------------------===//
-
+#ifdef __APPLE__
 template<class Ty>
 struct less_ptr : public std::__binary_function<Ty, Ty, bool> {
   bool operator()(const Ty* left, const Ty* right) const {
@@ -42,7 +42,21 @@ struct greater_ptr : public std::__binary_function<Ty, Ty, bool> {
     return *right < *left;
   }
 };
+#else
+template<class Ty>
+struct less_ptr : public std::binary_function<Ty, Ty, bool> {
+  bool operator()(const Ty* left, const Ty* right) const {
+    return *left < *right;
+  }
+};
 
+template<class Ty>
+struct greater_ptr : public std::binary_function<Ty, Ty, bool> {
+  bool operator()(const Ty* left, const Ty* right) const {
+    return *right < *left;
+  }
+};
+#endif
 // deleter - Very very very simple method that is used to invoke operator
 // delete on something.  It is used like this:
 //
