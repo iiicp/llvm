@@ -14,7 +14,7 @@
 
 #ifndef LLVM_SUPPORT_CAPACITY_H
 #define LLVM_SUPPORT_CAPACITY_H
-
+#include <string.h>
 namespace llvm {
 
 template <typename T>
